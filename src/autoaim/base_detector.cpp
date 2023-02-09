@@ -19,10 +19,12 @@ static inline float sigmoid_x(float x)
 {
 	return static_cast<float>(1.f / (1.f + exp(-x)));
 }
+
 static inline int argmax(const float *ptr, int len)
 {
     int max_arg = 0;
-    for (int i = 1; i < len; i++) {
+    for (int i = 1; i < len; i++)
+    {
         if (ptr[i] > ptr[max_arg]) max_arg = i;
     }
     return max_arg;
@@ -36,29 +38,30 @@ cv::Mat DetectorProcess::PreProcessYolo(cv::Mat &img, int input_h, int input_w)
     cv::resize(RGB_img, re, re.size(), 0, 0, cv::INTER_LINEAR);
     return re;
 }
+
 void drawPred(float conf, int left, int top, int right, int bottom, cv::Mat& frame, vector<int> landmark)   // Draw the predicted bounding box
 {
 	//Draw a rectangle displaying the bounding box
-	cv::rectangle(frame, cv::Point(left, top), cv::Point(right, bottom), cv::Scalar(0, 255, 0), 2);
+    //cv::rectangle(frame, cv::Point(left, top), cv::Point(right, bottom), cv::Scalar(0, 255, 0), 2);
 
 	//Get the label for the class name and its confidence
-	string label = cv::format("%.2f", conf);
+    string label = cv::format("%.2f", conf);
 
 	//Display the label at the top of the bounding box
-	int baseLine;
-	cv::Size labelSize = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
-	top = max(top, labelSize.height);
+    int baseLine;
+    cv::Size labelSize = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
+    top = max(top, labelSize.height);
 
-	cv::putText(frame, label, cv::Point(left, top), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0, 255, 0), 1);
-	for (int i = 0; i < 5; i++)
-	{
+    cv::putText(frame, label, cv::Point(left, top), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0, 255, 0), 1);
+    for (int i = 0; i < 5; i++)
+    {
         printf("[%d,%d]\n",landmark[2 * i], landmark[2 * i + 1]);
         //cv::circle(frame, cv::Point(landmark[2 * i], landmark[2 * i + 1]), 5, cv::Scalar(0, 0, 255), -1);
         cv::line(frame, cv::Point(landmark[0], landmark[1]), cv::Point(landmark[2], landmark[3]),cv::Scalar(193, 182, 255), 1, 8);
         cv::line(frame, cv::Point(landmark[2], landmark[3]), cv::Point(landmark[4], landmark[5]),cv::Scalar(193, 182, 255), 1, 8);
         cv::line(frame, cv::Point(landmark[4], landmark[5]), cv::Point(landmark[6], landmark[7]),cv::Scalar(193, 182, 255), 1, 8);
         cv::line(frame, cv::Point(landmark[6], landmark[7]), cv::Point(landmark[0], landmark[1]),cv::Scalar(193, 182, 255), 1, 8);
-	}
+    }
     //cv::imwrite("detect.jpg",frame);
 }
 
@@ -70,6 +73,7 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
 	vector<float> confidences;
 	vector<cv::Rect> boxes;
     vector< vector<int>> landmarks;
+    vector<int> labels;
 
 	float ratioh = (float)srcimg.rows / NetInputHeight;
     float ratiow = (float)srcimg.cols / NetInputWidth;
@@ -86,6 +90,7 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
 				for (j = 0; j < num_grid_x; j++)
 				{
 					float* pdata = Idata + row_ind * nout;
+                    row_ind++;
                     float box_score = (pdata[4]);
                     if (box_score > 0.6)
 					{
@@ -125,9 +130,9 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
                         std::vector<cv::Point2f> tmp(apex, apex + 4);
                         boxes.push_back(cv::boundingRect(tmp));
 						landmarks.push_back(landmark);
+                        labels.emplace_back(id);
 						
 					}
-					row_ind++;
 				}
 			}
 		}
@@ -138,18 +143,30 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
 	vector<int> indices;
 	cv::dnn::NMSBoxes(boxes, confidences, nmsScoreThreshold, nmsThreshold, indices);
     printf("indices size = %ld\n", indices.size());
+
+    ArmorObject obj;
+    int count = indices.size();
+    objects.resize(count);
 	for (size_t i = 0; i < indices.size(); ++i)
 	{
 		int idx = indices[i];
-        printf("idx = %d\n",idx);
+        printf("idx = %d\n",labels[idx]);
         cv::Rect bbox = boxes[idx];
-        
-		drawPred(confidences[idx], bbox.x, bbox.y,
-			        bbox.x + bbox.width, bbox.y + bbox.height, srcimg, landmarks[idx]);
+        drawPred(confidences[idx], bbox.x, bbox.y,
+                    bbox.x + bbox.width, bbox.y + bbox.height, srcimg, landmarks[idx]);
+        obj.rect = bbox;
+        obj.label = labels[idx];
+        obj.confidence = confidences[idx];
+        obj.pts[0] = cv::Point2f(landmarks[idx][0],landmarks[idx][1]);
+        obj.pts[1] = cv::Point2f(landmarks[idx][2],landmarks[idx][3]);
+        obj.pts[2] = cv::Point2f(landmarks[idx][4],landmarks[idx][5]);
+        obj.pts[3] = cv::Point2f(landmarks[idx][6],landmarks[idx][7]);
+        objects.emplace_back(obj);
 	}
+
+
     return 0;
 }
-
 
 void DetectorProcess::run(cv::Mat &img)
 {

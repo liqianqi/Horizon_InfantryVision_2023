@@ -2,7 +2,7 @@
 
 OpenvinoEngine::OpenvinoEngine()
 {
-    //Init("/home/liqianqi/Horizon_InfantryVision-2023/best_model.xml");
+    //Init("/home/liqianqi/Horizon_InfantryVision-2023/best_model.onnx");
     ov::Core core;
     std::vector<std::string> availableDevices = core.get_available_devices();
     if(availableDevices.empty()) {

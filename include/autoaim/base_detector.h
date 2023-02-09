@@ -13,11 +13,13 @@
 #include "ov_engine.h"
 using namespace std;
 
-struct Objects
+class ArmorObject
 {
-    cv::Rect box;
-    float conf;
-    float classId;
+public:
+    cv::Rect rect;
+    int confidence;
+    float label;
+    cv::Point pts[4];
 };
 
 class DetectorProcess 
@@ -43,6 +45,7 @@ private:
 	float nmsThreshold = 0.3;
 	float nmsScoreThreshold = 0.5;
     std::shared_ptr<OpenvinoEngine> net = std::make_shared<OpenvinoEngine>();
+    std::vector<ArmorObject> objects;
     int classNum = 36;   // set class num
     std::vector<cv::Rect2f> origin_rect;
     std::vector<float>  origin_confidence;
