@@ -8,9 +8,6 @@ OpenvinoEngine::OpenvinoEngine()
     if(availableDevices.empty()) {
         std::cout << "Unsupport device" << std::endl;
     }
-    // for (int i = 0; i < availableDevices.size(); i++) {
-    //     printf("supported device name : %s \n", availableDevices[i].c_str());
-    // }
 
     inputPrecision = ov::element::f32;   // set input/output precision
     outputPrecision = ov::element::f32;

@@ -7,7 +7,7 @@ int main()
     Factory vision;
 
     std::thread thread1(&Factory::producer,std::ref(vision));
-	
+
     std::thread thread2(&Factory::consumer,std::ref(vision));
 
     thread1.join();

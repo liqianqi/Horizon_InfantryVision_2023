@@ -217,7 +217,8 @@ void Factory::consumer()
         }
 #endif
 #else
-        infer.run(img);
+        //std::vector<ArmorObject> objects;
+        std::vector<ArmorObject> objects = infer.run(img);
 #endif
 
         //cv::imshow("show",img);

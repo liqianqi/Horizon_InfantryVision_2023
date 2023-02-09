@@ -5,6 +5,7 @@
 #include "../../include/buff/buff.h"
 //#include "../../include/autoaim/infer.h"
 #include "../../include/autoaim/base_detector.h"
+#include <future>
 using namespace std;
 
 enum BufferSize
