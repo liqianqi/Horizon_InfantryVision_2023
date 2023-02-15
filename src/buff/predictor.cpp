@@ -1,5 +1,5 @@
 #include "../../include/buff/predictor.hpp"
-
+#define DRAW_PREDICT
 bool Predictor::predictLocation(BUFF &buff, int timestamp,GimbalPose &pose,int mode)
 {
 
@@ -8,6 +8,7 @@ bool Predictor::predictLocation(BUFF &buff, int timestamp,GimbalPose &pose,int m
      * 2. 手眼标定得到云台系位置
      * 3. 同时获得目标的时间，应该为每一个图像赋予一个时间辍，作为整体封装
      */
+    is_params_confirmed_ = true;
     if(!is_params_confirmed_)
     {
         ceres::Problem problem;
@@ -27,7 +28,7 @@ bool Predictor::predictLocation(BUFF &buff, int timestamp,GimbalPose &pose,int m
             );
         }
         // 设置上下限
-        // FIXME:参数需根据场上大符实际调整
+        // FIXME: 参数需根据场上大符实际调整
         problem.SetParameterLowerBound(params_fitting, 0, 0.7);
         problem.SetParameterUpperBound(params_fitting, 0, 1.2);
         problem.SetParameterLowerBound(params_fitting, 1, 1.6);

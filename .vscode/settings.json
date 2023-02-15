@@ -64,6 +64,10 @@
 		"core": "cpp",
 		"strstream": "cpp",
 		"unordered_set": "cpp",
-		"cfenv": "cpp"
+		"cfenv": "cpp",
+		"*.ipp": "cpp",
+		"forward_list": "cpp",
+		"dense": "cpp",
+		"eigen": "cpp"
 	}
 }

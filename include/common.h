@@ -14,7 +14,8 @@
 #include <sys/time.h>
 #include <thread>
 #include <termio.h>
-#include<algorithm>
+#include <algorithm>
+#include <opencv2/core/eigen.hpp>
 
 namespace lqq
 {
@@ -164,4 +165,40 @@ public:
         out << "[pitch : " << gm.pitch << ", yaw : " << gm.yaw << "]" << std::endl;
         return out;
     }
+};
+
+const static int BUFFER = 60;
+template<typename T>
+class CircularQueue {
+public:
+    CircularQueue()
+    {
+        init();
+    }
+
+    bool Enqueue(T val)
+    {
+        queue_[iter_%BUFFER] = val;
+        iter_++;
+        size_ = iter_;
+        if(iter_ >= 60)
+        {
+            size_ = 60;
+        }
+    }
+    void init()
+    {
+        iter_ = 0;
+        size_ = 0;
+    }
+
+    int size()
+    {
+        return size_;
+    }
+
+private:
+    long long int iter_;
+    int size_;
+    T queue_[BUFFER];
 };

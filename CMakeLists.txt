@@ -30,19 +30,21 @@ include_directories(${CERES_INCLUDE_DIRS})
 include_directories("/usr/include/eigen3")
 include_directories(${OpenCV_INCLUDE_DIRS})
 
+include_directories(include "/usr/include/python3.8")
+
 find_package(Python3 COMPONENTS Intrepreter Development NumPy)
 message("finding OpenVINO")
 find_package(OpenVINO REQUIRED)
 message("finded OpenVINO")
 find_package(OpenCV REQUIRED)
-find_package(Python3 COMPONENTS Intrepreter Development NumPy)
+find_package(PythonLibs REQUIRED)
+find_package(matplotlib_cpp REQUIRED)
 # Ceres
 find_package(Ceres REQUIRED)
-
+file(GLOB_RECURSE "/usr/lib/python3.8/config-x86_64-linux-gnu/*.so")
 #include_directories(${PYTHON_INCLUDE_DIRS})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/DaHeng)
-include_directories(${Python3_INCLUDE_DIRS})
 
 aux_source_directory(./src/thread SRC_FILES)
 aux_source_directory(./src/autoaim SRC_FILES)
@@ -58,3 +60,5 @@ target_link_libraries(${PROJECT_NAME} ${SDK_DIR})
 target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES})
 target_link_libraries(${PROJECT_NAME} ${CERES_LIBRARIES})
 
+target_link_libraries(${PROJECT_NAME} matplotlib_cpp::matplotlib_cpp)
+target_link_libraries(${PROJECT_NAME} libpython3.8.so)

@@ -66,7 +66,7 @@ void drawPred(float conf, int left, int top, int right, int bottom, cv::Mat& fra
 }
 
 int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold, 
-                                    const std::vector<float *> inputData,
+                                        const std::vector<float *> inputData,
                                         std::vector<ArmorObject>& objects)
 {
     int NetInputHeight=416, NetInputWidth=416;
@@ -165,12 +165,16 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
         objects.emplace_back(obj);
 	}
 
-
     return 0;
 }
 
 std::vector<ArmorObject> DetectorProcess::run(cv::Mat &img)
 {
+    if(img.type())
+    {
+
+    }
+
     std::vector<ArmorObject> objects;
     const float Threshold = 0.7;
     std::vector<float *> NetOutput;

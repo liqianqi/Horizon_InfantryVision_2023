@@ -19,6 +19,7 @@ public:
     Factory(){}
 public:
     cv::Mat image_buffer_[IMGAE_BUFFER];
+	double timer_buffer_[IMGAE_BUFFER];
     volatile unsigned int image_buffer_front_ = 0;   // the produce index
     volatile unsigned int image_buffer_rear_ = 0;    // the comsum index
 

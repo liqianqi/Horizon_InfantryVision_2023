@@ -1,7 +1,7 @@
 #include "../../include/buff/buff.h"
 int threshold_param = 50;
 cv::Mat binary;
-//#define RED
+#define RED
 bool BuffDector::run(cv::Mat &image ,BUFF buff)
 {
     // 灰度and二值
@@ -154,13 +154,13 @@ bool BuffDector::run(cv::Mat &image ,BUFF buff)
         buff.fan[3] = vertices_flow[0];
     }
 
-    cv::circle(image,buff.fan[0],12,cv::Scalar(0,255,0),cv::FILLED);
-    cv::circle(image,buff.fan[1],12,cv::Scalar(18,153,255),cv::FILLED);
-    cv::circle(image,buff.fan[2],12,cv::Scalar(211,160,211),cv::FILLED);
-    cv::circle(image,buff.fan[3],12,cv::Scalar(0,0,0),cv::FILLED);
+    cv::circle(image,buff.fan[0],3,cv::Scalar(0,255,0),cv::FILLED);
+    cv::circle(image,buff.fan[1],3,cv::Scalar(18,153,255),cv::FILLED);
+    cv::circle(image,buff.fan[2],3,cv::Scalar(211,160,211),cv::FILLED);
+    cv::circle(image,buff.fan[3],3,cv::Scalar(255,255,0),cv::FILLED);
 
-    cv::imshow("binary",binary);
-    cv::imshow("imshow",image);
+    //cv::imshow("binary",binary);
+    //cv::imshow("imshow",image);
     return true;
 }
 

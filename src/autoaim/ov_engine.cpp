@@ -2,7 +2,6 @@
 
 OpenvinoEngine::OpenvinoEngine()
 {
-    //Init("/home/liqianqi/Horizon_InfantryVision-2023/best_model.onnx");
     ov::Core core;
     std::vector<std::string> availableDevices = core.get_available_devices();
     if(availableDevices.empty()) {
@@ -30,7 +29,8 @@ OpenvinoEngine::OpenvinoEngine()
     ppp.input(input_tensor_name).model()
                                 .set_layout("NCHW");
 
-    for (auto&& output : network->outputs()) {
+    for (auto&& output : network->outputs())
+    {
         output_tensor_name = output.get_any_name();
         ppp.output(output_tensor_name).tensor()
                                       .set_element_type(outputPrecision);

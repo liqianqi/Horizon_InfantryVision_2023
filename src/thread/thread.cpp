@@ -34,7 +34,7 @@ void DaHengSetGain(int,void* ){
 void Factory::producer()
 {
 #ifdef CAMERAMODE
-    cv::VideoCapture cap("/home/liqianqi/Horizon_InfantryVision-2023/src/thread/blue_buff.mp4");
+    cv::VideoCapture cap("/home/liqianqi/Horizon_InfantryVision-2023/src/thread/red_buff.mp4");
     cv::Mat src;
 #ifdef SAVE_VIDEO
     //cv::Mat image;
@@ -55,7 +55,8 @@ void Factory::producer()
     std::string path(std::string(storage_location + now_string).append(".avi"));
     auto writer = cv::VideoWriter(path, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 25.0, cv::Size(1350, 1080));    // Avi format
     std::future<void> write_video;
-    if (!writer.isOpened()) {
+    if (!writer.isOpened()) 
+	{
         cerr << "Could not open the output video file for write\n";
         return ;
     }
@@ -109,6 +110,7 @@ void Factory::producer()
         return ;
     }
 #endif
+    std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
     while(true)
     {
         if(GxCamera::camera_ptr_ != nullptr)
@@ -117,7 +119,12 @@ void Factory::producer()
             //image_mutex_.lock();
             if(GxCamera::camera_ptr_->GetMat(image_buffer_[image_buffer_front_%IMGAE_BUFFER]))
             {
-                ++image_buffer_front_;
+				std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+				std::chrono::duration<double> time_run = std::chrono::duration_cast <std::chrono::duration < double>>(t2 - t0);
+				//std::cout << "time :" << time_run.count() << std::endl;
+
+				timer_buffer_[image_buffer_front_%IMGAE_BUFFER] = time_run.count();
+				++image_buffer_front_;
 
 #ifdef SAVE_VIDEO
                 frame_cnt++;
@@ -135,8 +142,6 @@ void Factory::producer()
                 delete GxCamera::camera_ptr_;
                 GxCamera::camera_ptr_ = nullptr;
             }
-            //image_mutex_.unlock();
-
         }
         else
         {
@@ -179,28 +184,28 @@ void Factory::consumer()
     char now[64];
     std::time_t tt;
     struct tm *ttime;
-    int width = 1280;
-    int height = 1024;
+    int width = 1398;
+    int height = 1080;
     tt = time(nullptr);
     ttime = localtime(&tt);
     strftime(now, 64, "%Y-%m-%d_%H_%M_%S", ttime);  // 以时间为名字
     std::string now_string(now);
     std::string path(std::string(storage_location + now_string).append(".avi"));
-    auto writer = cv::VideoWriter(path, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 25.0, cv::Size(1350, 1080));    // Avi format
+    auto writer = cv::VideoWriter(path, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 25.0, cv::Size(1398, 1080));    // Avi format，1350，1080
     std::future<void> write_video;
 #endif
+    std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
     while(true)
     {
 
         // 若满足这个条件，则让这个函数一只停在这里
         while(image_buffer_front_ <= image_buffer_rear_);
         std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
-
         // 读取最新的图片
         image_buffer_rear_ = image_buffer_front_ - 1;
         // 直接获取引用
         cv::Mat &img = image_buffer_[image_buffer_rear_%IMGAE_BUFFER];
-
+		double src_time = timer_buffer_[image_buffer_rear_%IMGAE_BUFFER];
 #ifdef CAMERAMODE
         BUFF buff;
         if(buffdector.run(img,buff))
@@ -220,10 +225,9 @@ void Factory::consumer()
         //std::vector<ArmorObject> objects;
         std::vector<ArmorObject> objects = infer.run(img);
 #endif
+        cv::imshow("show",img);
 
-        //cv::imshow("show",img);
-
-        //cv::waitKey(1);
+        cv::waitKey(1);
         std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
         std::chrono::duration<double> time_run = std::chrono::duration_cast <std::chrono::duration < double>>(t2 - t1);
 

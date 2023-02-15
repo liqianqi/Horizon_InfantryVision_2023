@@ -360,8 +360,8 @@ bool DaHengCamera::setGamma(double gamma)
  * @param Src 引入方式传递
  * @return bool 返回是否成功
  */
-bool DaHengCamera::GetMat(cv::Mat &Src){
-
+bool DaHengCamera::GetMat(cv::Mat &Src)
+{
     //调 用 GXDQBuf 取 一 帧 图 像
     status = GXDQBuf(hDevice, &pFrameBuffer, 1000);
 

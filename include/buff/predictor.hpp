@@ -1,3 +1,4 @@
+#pragma once
 #include "../common.h"
 #include "buff.h"
 #include <ceres/jet.h>
@@ -17,7 +18,7 @@ struct TargetInfo
 /**
  * @brief  自适应扩展卡尔曼滤波
  *
- * @author 上交：唐欣阳
+ * @author 上交:唐欣阳(花山甲老师)
  */
 template <int N_X, int N_Y>
 class AdaptiveEKF

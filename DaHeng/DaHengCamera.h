@@ -28,7 +28,8 @@ public:
 
 private:
     //选择曝光增益通道
-    enum class Channel{
+    enum class Channel
+	{
         BLUE,
         GREEN,
         RED,
