@@ -1,7 +1,10 @@
 #include "../../include/thread/thread.h"
-//#define CAMERAMODE VIDEO
 //#define SAVE_VIDEO
 //#define RECORD_DATA
+//#define DAHENG
+#define MIDVISION
+//#define VIDEO
+
 namespace GxCamera
 {
 //int GX_exp_time = 2533;
@@ -25,15 +28,27 @@ void DaHengSetExpTime(int,void* )
     camera_ptr_->SetExposureTime(GX_exp_time);
 }
 
-void DaHengSetGain(int,void* ){
+void DaHengSetGain(int,void* )
+{
     camera_ptr_->SetGain(3,GX_gain);
 }
 
 }
 
+namespace MidCamera
+{
+	int MV_exp_value = 10000;
+	MVCamera* camera_ptr_ = nullptr;
+	void MVSetExpTime( int, void* )
+	{
+		camera_ptr_->SetExpose(MV_exp_value);
+	}
+}
+
 void Factory::producer()
 {
-#ifdef CAMERAMODE
+
+#ifdef VIDEO
     cv::VideoCapture cap("/home/liqianqi/Horizon_InfantryVision-2023/src/thread/red_buff.mp4");
     cv::Mat src;
 #ifdef SAVE_VIDEO
@@ -87,7 +102,10 @@ void Factory::producer()
         image_buffer_front_++;
     }
 
-#else
+#endif
+
+#ifdef DAHENG
+
 #ifdef SAVE_VIDEO
     cv::Mat image;
 //    GxCamera::camera_ptr_->GetMat(image);
@@ -164,13 +182,90 @@ void Factory::producer()
             GxCamera::DaHengSetExpTime(0,nullptr);
             cv::createTrackbar("DaHengGain", "DaHengCameraDebug", &GxCamera::GX_gain, 10,GxCamera::DaHengSetGain);
             GxCamera::DaHengSetGain(0,nullptr);
-           //GxCamera::DaHengSetGain(0,nullptr);
+            // GxCamera::DaHengSetGain(0,nullptr);
 
             image_buffer_front_ = 0;
             image_buffer_rear_ = 0;
         }
     }
 #endif
+
+#ifdef MIDVISION
+
+#ifdef SAVE_VIDEO
+    cv::Mat image;
+//    GxCamera::camera_ptr_->GetMat(image);
+    int frame_cnt = 0;
+    const std::string &storage_location = "../record/";
+    char now[64];
+    std::time_t tt;
+    struct tm *ttime;
+    int width = 1280;
+    int height = 1024;
+    tt = time(nullptr);
+    ttime = localtime(&tt);
+    strftime(now, 64, "%Y-%m-%d_%H_%M_%S", ttime);  // 以时间为名字
+    std::string now_string(now);
+    std::string path(std::string(storage_location + now_string).append(".avi"));
+    auto writer = cv::VideoWriter(path, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 25.0, cv::Size(width,height));    // Avi format
+    std::future<void> write_video;
+    if (!writer.isOpened()) 
+	{
+        cerr << "Could not open the output video file for write\n";
+        return ;
+    }
+#endif
+    std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
+    while(true)
+    {
+        if(MidCamera::camera_ptr_ != nullptr)
+        {
+            while(image_buffer_front_ - image_buffer_rear_ > IMGAE_BUFFER){};
+            // image_mutex_.lock();
+            if(MidCamera::camera_ptr_->GetMat(image_buffer_[image_buffer_front_%IMGAE_BUFFER]))
+			{
+				std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+				std::chrono::duration<double> time_run = std::chrono::duration_cast <std::chrono::duration < double>>(t2 - t0);
+				std::cout << "time :" << time_run.count() << std::endl;
+				
+				MidCamera::camera_ptr_->SetExpose(MidCamera::MV_exp_value);
+
+				timer_buffer_[image_buffer_front_%IMGAE_BUFFER] = time_run.count();
+				++image_buffer_front_;
+
+#ifdef SAVE_VIDEO
+                frame_cnt++;
+                cv::Mat src = image_buffer_[image_buffer_front_%IMGAE_BUFFER];
+                if(frame_cnt % 10 == 0)
+                {
+                    frame_cnt = 0;
+                    //异步读写加速,避免阻塞生产者
+                    write_video = std::async(std::launch::async, [&, src](){writer.write(src);});
+                }
+#endif
+			}
+            else
+            {
+				delete MidCamera::camera_ptr_;
+                MidCamera::camera_ptr_ = nullptr;
+            }
+        }
+        else
+        {
+			MidCamera::camera_ptr_ = new MVCamera;
+
+			MidCamera::camera_ptr_->SetExpose(5000);
+
+			cv::namedWindow("MVCameraDebug", cv::WINDOW_AUTOSIZE);
+			cv::createTrackbar("MVExpTime", "MVCameraDebug", &MidCamera::MV_exp_value, 15000, MidCamera::MVSetExpTime);
+			// MidCamera::MVSetExpTime(0,nullptr);
+
+			image_buffer_front_ = 0;
+			image_buffer_rear_ = 0;
+        }
+    }
+#endif
+
 }
 
 
@@ -206,7 +301,7 @@ void Factory::consumer()
         // 直接获取引用
         cv::Mat &img = image_buffer_[image_buffer_rear_%IMGAE_BUFFER];
 		double src_time = timer_buffer_[image_buffer_rear_%IMGAE_BUFFER];
-#ifdef CAMERAMODE
+#ifdef VIDEO
         BUFF buff;
         if(buffdector.run(img,buff))
         {

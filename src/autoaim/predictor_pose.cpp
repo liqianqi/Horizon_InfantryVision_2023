@@ -115,14 +115,14 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> PredictorPose::cam2ptz(Eigen::Vector3
     0,  std::cos(imu_data_.pitch),  -std::sin(imu_data_.pitch),
     0,  std::sin(imu_data_.pitch),  std::cos(imu_data_.pitch);
 
-    Eigen::Matrix3f pitch_rotation_matrix_t;
+    Eigen::Matrix3d pitch_rotation_matrix_t;
     pitch_rotation_matrix_t
     <<
     1,              0,              		0,
     0,  std::cos(imu_data_.pitch),  std::sin(imu_data_.pitch),
     0,  -std::sin(imu_data_.pitch), std::cos(imu_data_.pitch);
 
-	Eigen::Matrix3f yaw_rotation_matrix_t;
+	Eigen::Matrix3d yaw_rotation_matrix_t;
     yaw_rotation_matrix_t
     <<
     std::cos(imu_data_.yaw),  0,  std::sin(imu_data_.yaw),
@@ -134,7 +134,7 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> PredictorPose::cam2ptz(Eigen::Vector3
 	 * 用欧拉较或泰特布莱恩角表示旋转，顺序十分重要，一般是X-Y-Z，但RM这种小角度，绕定轴动轴都一样顺序什么样结果都一样
 	 * 可以动手试试
 	*/
-	Eigen::Vector3f ptz_coord = pitch_rotation_matrix_t * yaw_rotation_matrix_t * cam_coord;
+	Eigen::Vector3d ptz_coord = pitch_rotation_matrix_t * yaw_rotation_matrix_t * cam_coord;
 
 	Eigen::Matrix3d rotate_cam_ptz_eigen = pitch_rotation_matrix_R*yaw_rotation_matrix_R*rotate_world_cam_eigen;
 
@@ -327,4 +327,9 @@ float PredictorPose::bullteFlyTime(Eigen::Vector3d coord)
 
     return distance1/(v0_*std::cos(PI_pitch));
 
+}
+
+ArmorObject PredictorPose::ArmorSelect(std::vector<ArmorObject> &objects)
+{
+	return objects[0];
 }

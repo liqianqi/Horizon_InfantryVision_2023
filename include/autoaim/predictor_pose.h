@@ -17,7 +17,6 @@ class PnpSolver
 public:
 	PnpSolver() = delete;					// 删除默认构造函数
 	PnpSolver(const string yaml);
-	PnpSolver(const string yaml);
 
 	std::pair<Eigen::Vector3d,Eigen::Vector3d> poseCalculation(ArmorObject &obj);
 private:

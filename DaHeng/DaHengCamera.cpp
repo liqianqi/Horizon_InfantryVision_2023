@@ -144,10 +144,12 @@ bool DaHengCamera::SetExposureTime(){
 bool DaHengCamera::SetExposureTime(unsigned short time){
     //设 置  曝 光 值
     status = GXSetFloat(hDevice, GX_FLOAT_EXPOSURE_TIME, time);
-    if(status == GX_STATUS_SUCCESS){
+    if(status == GX_STATUS_SUCCESS)
+	{
         std::cout<<"曝光值设置成功"<<std::endl;
         return true;
-    }else{
+    }else
+	{
         std::cout<<"曝光值设置失败"<<std::endl;
         return false;
     }
@@ -253,7 +255,6 @@ bool DaHengCamera::Set_BALANCE(){
     else
         return false;
 }
-
 
 /**
  * @brief DaHengCamera::SetGamma 手动设置Gamma参数，调整其大小可看清装甲板数字
@@ -365,7 +366,8 @@ bool DaHengCamera::GetMat(cv::Mat &Src)
     //调 用 GXDQBuf 取 一 帧 图 像
     status = GXDQBuf(hDevice, &pFrameBuffer, 1000);
 
-    if(status == GX_STATUS_SUCCESS&&pFrameBuffer->nStatus == GX_FRAME_STATUS_SUCCESS){
+    if(status == GX_STATUS_SUCCESS&&pFrameBuffer->nStatus == GX_FRAME_STATUS_SUCCESS)
+	{
 
         int64_t g_i64ColorFilter = GX_COLOR_FILTER_NONE;    ///< Color filter of device
         GXGetEnum(hDevice, GX_ENUM_PIXEL_COLOR_FILTER, &g_i64ColorFilter);
@@ -373,7 +375,8 @@ bool DaHengCamera::GetMat(cv::Mat &Src)
         uint8_t *pRaw8Image = new uint8_t[pFrameBuffer->nWidth * pFrameBuffer->nHeight];
         //DxRaw8toRGB24(pFrameBuffer,pRGB24Buf,pFrameBuffer->nWidth,pFrameBuffer->nHeight,RAW2RGB_NEIGHBOUR,BAYERRG,true);
 
-        switch (pFrameBuffer->nPixelFormat){
+        switch (pFrameBuffer->nPixelFormat)
+		{
             case GX_PIXEL_FORMAT_BAYER_GR8:
             case GX_PIXEL_FORMAT_BAYER_RG8:
             case GX_PIXEL_FORMAT_BAYER_GB8:
@@ -402,7 +405,7 @@ bool DaHengCamera::GetMat(cv::Mat &Src)
         {
             printf("Error : PixelFormat of this camera is not supported\n");
         }
-    }
+    	}	
 
         cv::Mat tMat(cv::Size(pFrameBuffer->nWidth,pFrameBuffer->nHeight),CV_8UC3,pRGB24Buf);
         cv::cvtColor(tMat,Src,cv::COLOR_RGB2BGR);

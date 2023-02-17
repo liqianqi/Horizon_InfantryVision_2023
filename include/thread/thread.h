@@ -6,6 +6,7 @@
 //#include "../../include/autoaim/infer.h"
 #include "../../include/autoaim/base_detector.h"
 #include <future>
+#include "../../MidVision/include/MidCamera.h"
 using namespace std;
 
 enum BufferSize
@@ -30,11 +31,7 @@ public:
     BUFF buff;
     BuffDector buffdector;
     DetectorProcess infer;
-    //vector<Detector::Object> detected_objects;
 
-
-//    Detector infer1;
-//    vector<Object> ArmorObjects;
 
 };
 
