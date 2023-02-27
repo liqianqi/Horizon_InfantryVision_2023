@@ -1,7 +1,7 @@
 #pragma once
 #include "../common.h"
 
-struct BUFF
+struct alignas(16) BUFF
 {
     cv::Point2f fan[4];
     cv::Point3f armor;

@@ -32,7 +32,6 @@ public:
     BuffDector buffdector;
     DetectorProcess infer;
 
-
 };
 
 

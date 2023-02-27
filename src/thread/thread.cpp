@@ -10,9 +10,9 @@ namespace GxCamera
 //int GX_exp_time = 2533;
 
 //int GX_gain = 4;
-int GX_exp_time = 10000;
+int GX_exp_time = 1500;
 
-int GX_gain = 10;
+int GX_gain = 0;
 DaHengCamera* camera_ptr_ = nullptr;
 int GX_blance_r = 50;
 int GX_blance_g = 32;
@@ -37,7 +37,7 @@ void DaHengSetGain(int,void* )
 
 namespace MidCamera
 {
-	int MV_exp_value = 10000;
+	int MV_exp_value = 5000;
 	MVCamera* camera_ptr_ = nullptr;
 	void MVSetExpTime( int, void* )
 	{
@@ -123,7 +123,8 @@ void Factory::producer()
     std::string path(std::string(storage_location + now_string).append(".avi"));
     auto writer = cv::VideoWriter(path, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 25.0, cv::Size(width,height));    // Avi format
     std::future<void> write_video;
-    if (!writer.isOpened()) {
+    if (!writer.isOpened()) 
+	{
         cerr << "Could not open the output video file for write\n";
         return ;
     }
@@ -226,7 +227,7 @@ void Factory::producer()
 			{
 				std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
 				std::chrono::duration<double> time_run = std::chrono::duration_cast <std::chrono::duration < double>>(t2 - t0);
-				std::cout << "time :" << time_run.count() << std::endl;
+				//std::cout << "time :" << time_run.count() << std::endl;
 				
 				MidCamera::camera_ptr_->SetExpose(MidCamera::MV_exp_value);
 
@@ -244,14 +245,14 @@ void Factory::producer()
                 }
 #endif
 			}
-            else
-            {
+			else
+			{
 				delete MidCamera::camera_ptr_;
-                MidCamera::camera_ptr_ = nullptr;
-            }
-        }
-        else
-        {
+				MidCamera::camera_ptr_ = nullptr;
+			}
+		}
+		else
+		{
 			MidCamera::camera_ptr_ = new MVCamera;
 
 			MidCamera::camera_ptr_->SetExpose(5000);
@@ -301,6 +302,7 @@ void Factory::consumer()
         // 直接获取引用
         cv::Mat &img = image_buffer_[image_buffer_rear_%IMGAE_BUFFER];
 		double src_time = timer_buffer_[image_buffer_rear_%IMGAE_BUFFER];
+		std::cout << "time :" << src_time << std::endl;
 #ifdef VIDEO
         BUFF buff;
         if(buffdector.run(img,buff))

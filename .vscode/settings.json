@@ -68,6 +68,25 @@
 		"*.ipp": "cpp",
 		"forward_list": "cpp",
 		"dense": "cpp",
-		"eigen": "cpp"
+		"eigen": "cpp",
+		"cholesky": "cpp",
+		"eigenvalues": "cpp",
+		"geometry": "cpp",
+		"householder": "cpp",
+		"iterativelinearsolvers": "cpp",
+		"jacobi": "cpp",
+		"lu": "cpp",
+		"orderingmethods": "cpp",
+		"qr": "cpp",
+		"svd": "cpp",
+		"sparse": "cpp",
+		"sparsecholesky": "cpp",
+		"sparsecore": "cpp",
+		"sparselu": "cpp",
+		"sparseqr": "cpp",
+		"stdvector": "cpp",
+		"tensor": "cpp",
+		"threadpool": "cpp",
+		"specialfunctions": "cpp"
 	}
 }

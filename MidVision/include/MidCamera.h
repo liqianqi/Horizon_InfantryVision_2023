@@ -1,3 +1,5 @@
+#pragma once
+
 #include "CameraApi.h"
 #include <iostream>
 #include <opencv2/opencv.hpp>
@@ -95,6 +97,7 @@ public:
 	{
 		value_ = value;
 		iStatus = CameraSetExposureTime(hCamera,value_);
+		CameraSetGain(hCamera,100,100,75);
 	
 		if(iStatus == CAMERA_STATUS_SUCCESS)
 		{

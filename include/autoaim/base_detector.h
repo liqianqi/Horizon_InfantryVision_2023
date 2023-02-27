@@ -11,9 +11,13 @@
 #include <iostream>
 #include <utility>
 #include "ov_engine.h"
+#include "common.h"
 using namespace std;
 
-class ArmorObject
+static constexpr int INPUT_W = 416;    // Width of input
+static constexpr int INPUT_H = 416;    // Height of input
+
+class alignas(16) ArmorObject
 {
 public:
     cv::Rect rect;
@@ -34,7 +38,9 @@ public:
 
     std::vector<ArmorObject> run(cv::Mat &img);
 private:
-    const float netAnchors[3][6] = { {4,5,  8,10,  13,16}, {23,29,  43,55,  73,105},{146,217,  231,300,  335,433} };
+    const float netAnchors[3][6] = {{4,5,  8,10,  13,16}, 
+									{23,29,  43,55,  73,105},
+									{146,217,  231,300,  335,433}};
     const float netStride[3] = { 8.0, 16.0, 32.0 };
     const int strideSize = 3;   //stride size
     // float nmsThreshold_ = 0.6f;
