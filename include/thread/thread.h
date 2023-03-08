@@ -7,6 +7,7 @@
 #include "../../include/autoaim/base_detector.h"
 #include <future>
 #include "../../MidVision/include/MidCamera.h"
+#include "../../include/autoaim/predictor_pose.h"
 using namespace std;
 
 enum BufferSize
@@ -31,6 +32,7 @@ public:
     BUFF buff;
     BuffDector buffdector;
     DetectorProcess infer;
+	std::shared_ptr<PnpSolver> pnp_solver_ = std::make_shared<PnpSolver>(yaml); // 解算器
 
 };
 

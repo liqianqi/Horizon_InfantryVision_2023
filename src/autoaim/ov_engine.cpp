@@ -11,7 +11,7 @@ OpenvinoEngine::OpenvinoEngine()
     inputPrecision = ov::element::f32;   // set input/output precision
     outputPrecision = ov::element::f32;
 
-    network = core.read_model("/home/liqianqi/Horizon_InfantryVision-2023/best_model.xml");
+    network = core.read_model("/home/liqianqi/Horizon_InfantryVision-2023/2023_03_08_best.xml");
 
     ov::preprocess::PrePostProcessor ppp = ov::preprocess::PrePostProcessor(network);
 

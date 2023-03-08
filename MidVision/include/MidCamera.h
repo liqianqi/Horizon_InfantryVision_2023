@@ -84,7 +84,7 @@ public:
             // 在成功调用CameraGetImageBuffer后，必须调用CameraReleaseImageBuffer来释放获得的buffer。
 			// 否则再次调用CameraGetImageBuffer时，程序将被挂起一直阻塞，直到其他线程中调用CameraReleaseImageBuffer来释放了buffer
 			CameraReleaseImageBuffer(hCamera,pbyBuffer);
-			cout << "曝光值: " << value_ << endl;
+			std::cout << "曝光值: " << value_ << std::endl;
 			return true;
 		}else
 		{
@@ -97,7 +97,7 @@ public:
 	{
 		value_ = value;
 		iStatus = CameraSetExposureTime(hCamera,value_);
-		CameraSetGain(hCamera,100,100,75);
+		CameraSetGain(hCamera,100,100,80);
 	
 		if(iStatus == CAMERA_STATUS_SUCCESS)
 		{

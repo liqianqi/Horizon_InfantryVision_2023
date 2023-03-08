@@ -321,6 +321,9 @@ void Factory::consumer()
 #else
         //std::vector<ArmorObject> objects;
         std::vector<ArmorObject> objects = infer.run(img);
+
+		//std::pair<Eigen::Vector3d, Eigen::Vector3d> pose = pnp_solver_->poseCalculation(objects[0]);
+
 #endif
         cv::imshow("show",img);
 

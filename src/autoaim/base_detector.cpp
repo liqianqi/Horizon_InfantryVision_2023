@@ -52,12 +52,12 @@ cv::Mat DetectorProcess::PreProcessYolo(cv::Mat &img, int input_h, int input_w)
 	x_offset = dw;
 	y_offset = dh;
 
-    transform_matrix << 1.0 / r, 0, -dw / r,
-                        0, 1.0 / r, -dh / r,
-                        0, 0, 1;
-    
+    // transform_matrix << 1.0 / r, 0, -dw / r,
+    //                     0, 1.0 / r, -dh / r,
+    //                     0, 0, 1;
+
     cv::Mat re;
-    cv::resize(img, re, cv::Size(unpad_w,unpad_h));
+    cv::resize(RGB_img, re, cv::Size(unpad_w,unpad_h));
     cv::Mat out;
     cv::copyMakeBorder(re, out, dh, dh, dw, dw, cv::BORDER_CONSTANT);
 	//std::cout << "width: " << out.cols << "	" << "height: " << out.rows << std::endl;
@@ -69,6 +69,7 @@ void drawPred(float conf, int left, int top, int right, int bottom, cv::Mat& fra
 {
 	//Draw a rectangle displaying the bounding box
     //cv::rectangle(frame, cv::Point(left, top), cv::Point(right, bottom), cv::Scalar(0, 255, 0), 2);
+	//cv::rectangle(frame, cv::Point(left-70, top-70), cv::Point(right+30, bottom+30), cv::Scalar(0, 255, 0), 2);
 
 	//Get the label for the class name and its confidence
     string label = cv::format("%.2f", conf);
@@ -87,11 +88,11 @@ void drawPred(float conf, int left, int top, int right, int bottom, cv::Mat& fra
 	for (int i = 0; i < 5; i++)
     {
         printf("[%d,%d]\n",landmark[2 * i], landmark[2 * i + 1]);
-        //cv::circle(frame, cv::Point(landmark[2 * i], landmark[2 * i + 1]), 5, cv::Scalar(0, 0, 255), -1);
-        cv::line(frame, cv::Point(landmark[0], landmark[1]), cv::Point(landmark[2], landmark[3]),cv::Scalar(193, 182, 255), 1, 8);
-        cv::line(frame, cv::Point(landmark[2], landmark[3]), cv::Point(landmark[4], landmark[5]),cv::Scalar(193, 182, 255), 1, 8);
-        cv::line(frame, cv::Point(landmark[4], landmark[5]), cv::Point(landmark[6], landmark[7]),cv::Scalar(193, 182, 255), 1, 8);
-        cv::line(frame, cv::Point(landmark[6], landmark[7]), cv::Point(landmark[0], landmark[1]),cv::Scalar(193, 182, 255), 1, 8);
+        cv::circle(frame, cv::Point(landmark[2 * i], landmark[2 * i + 1]), 5, cv::Scalar(0, 0, 255), -1);
+        cv::line(frame, cv::Point(landmark[0], landmark[1]), cv::Point(landmark[2], landmark[3]),cv::Scalar(127, 255, 127), 2, 8);
+        cv::line(frame, cv::Point(landmark[2], landmark[3]), cv::Point(landmark[4], landmark[5]),cv::Scalar(127, 255, 127), 2, 8);
+        cv::line(frame, cv::Point(landmark[4], landmark[5]), cv::Point(landmark[6], landmark[7]),cv::Scalar(127, 255, 127), 2, 8);
+        cv::line(frame, cv::Point(landmark[6], landmark[7]), cv::Point(landmark[0], landmark[1]),cv::Scalar(127, 255, 127), 2, 8);
     }
     //cv::imwrite("detect.jpg",frame);
 }
@@ -124,7 +125,7 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
 					float* pdata = Idata + row_ind * nout;
                     row_ind++;
                     float box_score = (pdata[4]);
-                    if (box_score > 0.6)
+                    if (box_score > 0.5)
 					{
                         int id = argmax(pdata + 15, 36);
                         float face_score = pdata[15 + id];
@@ -149,19 +150,10 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
                             landmark[ind + 1] = (int)(pdata[k + 1] - y_offset)/ratio_;
 						}
 
-						Eigen::Matrix<float,3,4> apex_norm;
-						Eigen::Matrix<float,3,4> apex_dst;
-
-						apex_norm << landmark[1],landmark[3],landmark[5],landmark[7],
-									landmark[2],landmark[4],landmark[6],landmark[8],
-									1,1,1,1;
-						
-						apex_dst = apex_norm;
-
                         cv::Point apex[4];
                         for (int i = 0; i < 4; i++)
                         {
-                            apex[i] = cv::Point(apex_dst(0,i),apex_dst(1,i));
+                            apex[i] = cv::Point(landmark[2 * i], landmark[2 * i + 1]);
                         }
 
                         std::vector<cv::Point2f> tmp(apex, apex + 4);
@@ -189,8 +181,8 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
 		int idx = indices[i];
         printf("idx = %d\n",labels[idx]);
         cv::Rect bbox = boxes[idx];
-        drawPred(confidences[idx], landmarks[i][0], landmarks[i][1],
-                    landmarks[i][0] + bbox.width, landmarks[i][1] + bbox.height, srcimg, landmarks[idx],labels[idx]);
+        drawPred(confidences[idx], bbox.x, bbox.y,
+                    bbox.x + bbox.width, bbox.y + bbox.height, srcimg, landmarks[idx],labels[idx]);
         obj.rect = bbox;
         obj.label = labels[idx];
         obj.confidence = confidences[idx];
