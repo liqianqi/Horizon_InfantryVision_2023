@@ -17,13 +17,12 @@ using namespace std;
 static constexpr int INPUT_W = 416;    // Width of input
 static constexpr int INPUT_H = 416;    // Height of input
 
-class alignas(16) ArmorObject
+struct ArmorObject
 {
-public:
     cv::Rect rect;
     int confidence;
     float label;
-    cv::Point pts[4];
+    cv::Point2f pts[4];
 };
 
 class DetectorProcess 

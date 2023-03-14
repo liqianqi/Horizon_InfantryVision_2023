@@ -101,7 +101,7 @@ public:
 	
 		if(iStatus == CAMERA_STATUS_SUCCESS)
 		{
-			std::cout << "曝光设置成功" << std::endl;
+			//std::cout << "曝光设置成功" << std::endl;
 			return true;
 		}else
 		{

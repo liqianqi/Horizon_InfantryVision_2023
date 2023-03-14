@@ -18,7 +18,16 @@ enum BufferSize
 class Factory
 {
 public:
-    Factory(){}
+    Factory()
+	{
+		coord[0] = 0;
+		coord[1] = 0;
+		coord[2] = 0;
+
+		rotation[0] = 0;
+		rotation[1] = 0;
+		rotation[2] = 0;
+	}
 public:
     cv::Mat image_buffer_[IMGAE_BUFFER];
 	double timer_buffer_[IMGAE_BUFFER];
@@ -28,12 +37,13 @@ public:
     void producer();
 
     void consumer();
-    mutex image_mutex_;               //数据上🔓
     BUFF buff;
     BuffDector buffdector;
     DetectorProcess infer;
 	std::shared_ptr<PnpSolver> pnp_solver_ = std::make_shared<PnpSolver>(yaml); // 解算器
 
+	Eigen::Vector3d coord;
+	Eigen::Vector3d rotation;
 };
 
 

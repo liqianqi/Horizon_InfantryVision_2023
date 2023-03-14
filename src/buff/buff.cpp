@@ -1,18 +1,31 @@
 #include "../../include/buff/buff.h"
-int threshold_param = 50;
+int threshold_param = 150;
 cv::Mat binary;
-#define RED
+//#define RED
+
+void ThresholdParam(int,void* )
+{
+
+}
+
 bool BuffDector::run(cv::Mat &image ,BUFF buff)
 {
+	std::cout << "start buff!!!" << std::endl;
     // 灰度and二值
     cv::Mat splited_image[3];
     split(image, splited_image);
 #ifdef RED
     binary = splited_image[2] - 0.1*splited_image[1] - 0.5f*splited_image[0];
 #else
-    binary = splited_image[0] - 0.1*splited_image[1] - 0.5f*splited_image[2];
+    binary = splited_image[0] - 0.1*splited_image[1] - 0.2f*splited_image[2];
 #endif
+	//cv::namedWindow("threshold", cv::WINDOW_AUTOSIZE);
+	//cv::createTrackbar("threshold_params", "threshold", &threshold_param, 255, ThresholdParam);
     threshold(binary, binary, 100, 255, cv::THRESH_BINARY);
+	std::string windowName = "binary";
+    cv::namedWindow(windowName, 0);
+    cv::imshow(windowName,binary);
+
     cv::Mat element;
 #ifdef RED
     element = getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5));
@@ -24,6 +37,11 @@ bool BuffDector::run(cv::Mat &image ,BUFF buff)
     std::vector<std::vector<cv::Point>> contours;
     std::vector<cv::Vec4i> hierarchy;
     findContours(binary, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_NONE);
+
+	if(contours.size() == 0)
+	{
+		return false;
+	}
 
     std::vector<double> areas;
     for(auto contour : contours)
@@ -44,7 +62,7 @@ bool BuffDector::run(cv::Mat &image ,BUFF buff)
         }
         if(hierarchy[i][2] == -1 && hierarchy[i][3] == -1)
         {
-            //cv::drawContours(image, contours, i, cv::Scalar(0,0,255), 1);
+            cv::drawContours(image, contours, i, cv::Scalar(0,0,255), 1);
             cv::RotatedRect rect;
             rect = cv::minAreaRect(contours[i]);
             cv::Point2f vertices[4];
@@ -60,16 +78,23 @@ bool BuffDector::run(cv::Mat &image ,BUFF buff)
             }
             for (int j = 0; j < 4; j++)
             {
-                //cv::line(image, vertices[j], vertices[(j + 1) % 4], cv::Scalar(0, 255, 0),1);
+                cv::line(image, vertices[j], vertices[(j + 1) % 4], cv::Scalar(0, 255, 0),1);
             }
         }
     }
 
-    if(flows.size() != 1 && fans.size() > 10)
+	if(fans.size() == 0)
+	{
+		std::cout << " no detect fan " << std::endl;
+		return false;
+	}
+
+    if(flows.size() != 1 || fans.size() > 10)
     {
         std::cout << "this frame failed! " << std::endl;
         return false;
     }
+	//std::cout << "state _ of _ energy" << std::endl;
     std::vector<float> distances;
     for(auto fan : fans)
     {
@@ -159,7 +184,6 @@ bool BuffDector::run(cv::Mat &image ,BUFF buff)
     cv::circle(image,buff.fan[2],3,cv::Scalar(211,160,211),cv::FILLED);
     cv::circle(image,buff.fan[3],3,cv::Scalar(255,255,0),cv::FILLED);
 
-    //cv::imshow("binary",binary);
     //cv::imshow("imshow",image);
     return true;
 }
