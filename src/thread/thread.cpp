@@ -342,7 +342,7 @@ void Factory::consumer()
 		std::cout << "time :" << src_time << std::endl;
 
 		serial_mutex_.lock();
-		stm32data = TimeSynchronization(MCU_data_, src_time);
+		TimeSynchronization(MCU_data_, src_time);
 		serial_mutex_.unlock();
 
 #ifdef VIDEO
@@ -432,6 +432,7 @@ void Factory::consumer()
 
 Horizon::DataControler::Stm32Data Factory::TimeSynchronization(std::deque<Horizon::DataControler::Stm32Data> &stm32s, double src_time)
 {
+	std::cout << "stm32s size() " << stm32s.size() << std::endl;
 	if (stm32s.size() == 0)
 	{
 		Horizon::DataControler::Stm32Data a;
@@ -439,17 +440,16 @@ Horizon::DataControler::Stm32Data Factory::TimeSynchronization(std::deque<Horizo
 	}
 	int index = 0;
 
-	for(auto stm32 : stm32s)
-	{
-		if(!stm32.dubug_print)
-		{
-		std::cout << "true" << std::endl;
-		}
-	}
+	// for(auto stm32 : stm32s)
+	// {
+	// 	if(!stm32.dubug_print)
+	// 	{
+	// 		// std::cout << "true" << std::endl;
+	// 	}
+	// }
 
 	vector<double> scale_time;
-	scale_time.reserve(200);
-	std::cout << "stm32 deque size: " << stm32s.size() << std::endl;
+	scale_time.reserve(1000);
 
 	for (int i = 0; i < stm32s.size(); i++)
 	{
@@ -466,13 +466,10 @@ Horizon::DataControler::Stm32Data Factory::TimeSynchronization(std::deque<Horizo
 	std::cout << "finished!!" << std::endl;
 	Horizon::DataControler::Stm32Data stm32 = stm32s[index];
 
-	if(stm32.dubug_print)
-	{
-	}
-	// stm32data.dubug_print = stm32s[index].dubug_print;
-	// stm32data.pitch_data_.f = stm32s[index].pitch_data_.f;
-	// stm32data.yaw_data_.f = stm32s[index].yaw_data_.f;
-	// stm32data.time.f = stm32s[index].time.f;
+	stm32data.dubug_print = stm32s[index].dubug_print;
+	stm32data.pitch_data_.f = stm32s[index].pitch_data_.f;
+	stm32data.yaw_data_.f = stm32s[index].yaw_data_.f;
+	stm32data.time.f = stm32s[index].time.f;
 
 	return stm32;
 }
@@ -483,6 +480,7 @@ void Factory::getdata()
 	configureSerial(fd);
 	while (1)
 	{
+		//cv::waitKey(1);
 		if (fd == -1)
 		{
 			// std::cout << "[the serial dosen`t open!!!]" << std::endl;
@@ -490,10 +488,19 @@ void Factory::getdata()
 		}
 
 		serial_mutex_.lock();
-		Horizon::DataControler::Stm32Data stm32data_temp;
 		data_controler_.getData(fd, stm32data_temp);
 		// 锁定问题
 		// stm32_deque_.Enqueue(stm32data_temp);
+		if(!stm32data_temp.dubug_print)
+		{
+			//std::cout << "is_not_receive" << std::endl;
+			serial_mutex_.unlock();
+			continue;
+		}else
+		{
+			//std::cout << "is_received" << std::endl;
+		}
+
 		if (MCU_data_.size() < mcu_size_)
 		{
 			MCU_data_.push_back(stm32data_temp);

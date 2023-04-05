@@ -63,7 +63,9 @@ public:
     Horizon::DataControler::VisionData visiondata;  // 视觉向电控传数据
     Horizon::DataControler::Stm32Data stm32data;    // 电控向视觉发数据
 
-    CircularQueue<Horizon::DataControler::Stm32Data,200> stm32_deque_;
+	Horizon::DataControler::Stm32Data stm32data_temp;
+
+    CircularQueue<Horizon::DataControler::Stm32Data,1000> stm32_deque_;
     std::deque<Horizon::DataControler::Stm32Data> MCU_data_;
     int mcu_size_ = 200;
 

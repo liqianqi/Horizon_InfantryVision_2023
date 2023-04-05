@@ -96,7 +96,7 @@ namespace Horizon
 		send_bytes[4] = data.pitch_data_.c[3];
 
 		// char *pa = (char*)&data.pitch_data_.f;
-		printf("first %d, second %d, third %d, forth %d\n", send_bytes[1], send_bytes[2], send_bytes[3], send_bytes[4]);
+		// printf("first %d, second %d, third %d, forth %d\n", send_bytes[1], send_bytes[2], send_bytes[3], send_bytes[4]);
 
 		send_bytes[5] = data.yaw_data_.c[0];
 		send_bytes[6] = data.yaw_data_.c[1];
@@ -124,7 +124,6 @@ namespace Horizon
 		}
 		else if (state_ == 2)
 		{ // xiaofu   100
-
 			SET_BIT((data.OnePointFive), 3);
 			CLEAR_BIT((data.OnePointFive), 2);
 			CLEAR_BIT((data.OnePointFive), 1);
