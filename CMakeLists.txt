@@ -46,11 +46,13 @@ file(GLOB_RECURSE "/usr/lib/python3.8/config-x86_64-linux-gnu/*.so")
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/DaHeng)
 include_directories(${PROJECT_SOURCE_DIR}/MidVision)
+include_directories(${PROJECT_SOURCE_DIR}/serial)
 
 aux_source_directory(./src/thread SRC_FILES)
 aux_source_directory(./src/autoaim SRC_FILES)
 aux_source_directory(./src/buff SRC_FILES)
 aux_source_directory(./DaHeng SRC_FILES)
+aux_source_directory(./serial SRC_FILES)
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
 	set(MV_SDK /home/liqianqi/Horizon_InfantryVision-2023/MidVision/lib/amd64/libMVSDK.so)

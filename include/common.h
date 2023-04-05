@@ -167,38 +167,50 @@ public:
     }
 };
 
-const static int BUFFER = 60;
-template<typename T>
+template<class T,int BUFFER>
 class CircularQueue {
 public:
     CircularQueue()
     {
         init();
+        std::cout << "[enter queue]" << std::endl;
     }
 
-    bool Enqueue(T val)
-    {
-        queue_[iter_%BUFFER] = val;
-        iter_++;
-        size_ = iter_;
-        if(iter_ >= 60)
-        {
-            size_ = 60;
-        }
-    }
-    void init()
-    {
-        iter_ = 0;
-        size_ = 0;
-    }
+    bool Enqueue(T &val);
 
-    int size()
-    {
-        return size_;
-    }
+    void init();
+
+    int size();
 
 private:
+    // const static int BUFFER = 60;
     long long int iter_;
     int size_;
+public:
     T queue_[BUFFER];
 };
+
+template <class T,int BUFFER>
+bool CircularQueue<T,BUFFER>::Enqueue(T &val)
+{
+    queue_[iter_%BUFFER] = val;
+    iter_++;
+    size_ = iter_;
+    if(iter_ >= BUFFER)
+    {
+        size_ = BUFFER;
+    }
+}
+
+template <class T,int BUFFER>
+void CircularQueue<T,BUFFER>::init()
+{
+    iter_ = 0;
+    size_ = 0;
+}
+
+template <class T,int BUFFER>
+int CircularQueue<T,BUFFER>::size()
+{
+    return size_;
+}

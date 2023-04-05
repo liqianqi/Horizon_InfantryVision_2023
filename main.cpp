@@ -10,10 +10,15 @@ int main()
 
     std::thread thread2(&Factory::consumer,std::ref(vision));
 
+    std::thread thread3(&Factory::getdata,std::ref(vision));
+
     thread1.join();
 
     thread2.join();
 
+    thread3.join();
+
+	return 0;
 }
 
 // 生产者，消费者模式

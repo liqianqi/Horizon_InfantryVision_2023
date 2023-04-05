@@ -33,6 +33,40 @@ Eigen::Vector3d rotationMatrixToEulerAngles(Eigen::Matrix3d &R)
     }
     return {z, y, x};
 }
+Eigen::Vector3d get_euler_angle(cv::Mat rotation_vector)
+{
+	double theta = cv::norm(rotation_vector,cv::NORM_L2);
+
+	double w = std::cos(theta / 2);
+    double x = std::sin(theta / 2) * rotation_vector.ptr<double>(0)[0] / theta;
+    double y = std::sin(theta / 2) * rotation_vector.ptr<double>(1)[0] / theta;
+    double z = std::sin(theta / 2) * rotation_vector.ptr<double>(2)[0] / theta;
+
+    double ysqr = y * y;
+    // pitch (x-axis rotation)
+    double t0 = 2.0 * (w * x + y * z);
+    double t1 = 1.0 - 2.0 * (x * x + ysqr);
+    double pitch = std::atan2(t0, t1);
+
+    // yaw (y-axis rotation)
+    double t2 = 2.0 * (w * y - z * x);
+    if (t2 > 1.0)
+	{
+        t2 = 1.0;
+	}
+    if (t2 < -1.0)
+	{
+        t2 = -1.0;
+	}
+    double yaw = std::asin(t2);
+
+    // roll (z-axis rotation)
+    double t3 = 2.0 * (w * z + x * y);
+    double t4 = 1.0 - 2.0 * (ysqr + z * z);
+    double roll = std::atan2(t3, t4);
+
+	return {roll ,yaw, pitch};
+}
 
 /**
  * @brief:  位姿解算器
@@ -125,12 +159,8 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver::poseCalculation(ArmorObje
 
 	cv2eigen(rotM, rotM_eigen);
 	// 将旋转矩阵分解为三个轴的欧拉角（roll、pitch、yaw）
-	cv::Mat rot_mat_r, rot_mat_q;
-	cv::RQDecomp3x3(rotM, rot_mat_r, rot_mat_q);
-
-
-	// cv::Mat euler_angles = -rot_mat_r.t() * rot_mat_q.t();
-	Eigen::Vector3d euler_angles = rotationMatrixToEulerAngles(rotM_eigen);
+	//Eigen::Vector3d euler_angles = rotationMatrixToEulerAngles(rotM_eigen);
+	Eigen::Vector3d euler_angles = get_euler_angle(rvecs);
 
 	// 这需要具体测量
 	// double roll = euler_angles.at<double>(0);  // X-world-axis 与 X-cam-axis 在yoz上的夹角
@@ -140,7 +170,6 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver::poseCalculation(ArmorObje
 	double roll = euler_angles[0];  // X-world-axis 与 X-cam-axis 在yoz上的夹角   roll
 	double yaw = euler_angles[1]; 	// Y-world-axis 与 Y-cam-axis 在xoz上的夹角   yaw
 	double pitch = euler_angles[2]; // Z-world-axis 与 Z-cam-axis 在xoy上的夹角   pitch
-
 
 	Eigen::Vector3d coord;
 	coord << tvecs.ptr<double>(0)[0], -tvecs.ptr<double>(0)[1], tvecs.ptr<double>(0)[2];
@@ -303,6 +332,8 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 	/**
 	 * 陀螺模块相对复杂，要测试的东西多，开学再写
 	 */
+
+	
 
 	// 选择一个装甲板
 	// 当卡方检验过大时仍然要打开初始化开关

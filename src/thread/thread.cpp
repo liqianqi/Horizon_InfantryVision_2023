@@ -1,9 +1,9 @@
 #include "../../include/thread/thread.h"
 // #define SAVE_VIDEO
 // #define RECORD_DATA
-#define DAHENG
-//#define MIDVISION
-//#define VIDEO
+// #define DAHENG
+#define MIDVISION
+// #define VIDEO
 mutex image_mutex_{}; // 数据上🔓
 
 namespace GxCamera
@@ -37,7 +37,7 @@ namespace GxCamera
 
 namespace MidCamera
 {
-	int MV_exp_value = 2500;
+	int MV_exp_value = 7500;
 	MVCamera *camera_ptr_ = nullptr;
 	void MVSetExpTime(int, void *)
 	{
@@ -47,7 +47,6 @@ namespace MidCamera
 
 void Factory::producer()
 {
-
 #ifdef VIDEO
 	cv::VideoCapture cap("/home/liqianqi/Horizon_InfantryVision-2023/src/thread/blue_buff.mp4");
 	cv::Mat src;
@@ -82,7 +81,8 @@ void Factory::producer()
 	}
 	for (;;)
 	{
-		while (image_buffer_front_ - image_buffer_rear_ > IMGAE_BUFFER);
+		while (image_buffer_front_ - image_buffer_rear_ > IMGAE_BUFFER)
+			;
 		cap >> image_buffer_[image_buffer_front_ % IMGAE_BUFFER];
 		src = image_buffer_[image_buffer_front_ % IMGAE_BUFFER];
 #ifdef SAVE_VIDEO
@@ -243,11 +243,12 @@ void Factory::producer()
 				{
 					std::cout << "try lock failed!!" << std::endl;
 				}
-				std::cout << "enter producer lock" << std::endl;
+				// std::cout << "enter producer lock" << std::endl;
 				timer_buffer_[image_buffer_front_ % IMGAE_BUFFER] = time_run.count();
 				++image_buffer_front_;
 				image_mutex_.unlock();
-				std::cout << "out producer lock" << std::endl;
+
+				// std::cout << "out producer lock" << std::endl;
 #ifdef SAVE_VIDEO
 				frame_cnt++;
 				cv::Mat src = image_buffer_[image_buffer_front_ % IMGAE_BUFFER];
@@ -320,25 +321,29 @@ void Factory::consumer()
 	auto writer = cv::VideoWriter(path, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 25.0, cv::Size(1398, 1080)); // Avi format，1350，1080
 	std::future<void> write_video;
 #endif
-	plt::ion();
-	plt::show();
+
 	std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
 	while (true)
 	{
 		// 若满足这个条件，则让这个函数一只停在这里
 		image_mutex_.lock();
-		std::cout << "enter consum lock" << std::endl;
-		while (image_buffer_front_ <= image_buffer_rear_);
+		// std::cout << "enter consum lock" << std::endl;
+		while (image_buffer_front_ <= image_buffer_rear_)
+			;
 		std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
 		// 读取最新的图片
 		image_buffer_rear_ = image_buffer_front_ - 1;
 		// 直接获取引用
-		std::cout << "hello" << std::endl;
 		cv::Mat &img = image_buffer_[image_buffer_rear_ % IMGAE_BUFFER];
 		image_mutex_.unlock();
-		std::cout << "out consum lock" << std::endl;
+
+		// std::cout << "out consum lock" << std::endl;
 		double src_time = timer_buffer_[image_buffer_rear_ % IMGAE_BUFFER];
 		std::cout << "time :" << src_time << std::endl;
+
+		serial_mutex_.lock();
+		stm32data = TimeSynchronization(MCU_data_, src_time);
+		serial_mutex_.unlock();
 
 #ifdef VIDEO
 		BUFF buff;
@@ -364,10 +369,16 @@ void Factory::consumer()
 			std::pair<Eigen::Vector3d, Eigen::Vector3d> pose = pnp_solver_->poseCalculation(objects[0]);
 			coord = pose.first;
 			rotation = pose.second;
+			// GimbalPose gim = predic_pose_->run(imu_data, objects, src_time);
 		}
 
-#endif
+		visiondata.yaw_data_.f = rotation[2] * 180 / CV_PI;
+		visiondata.pitch_data_.f = -10.5;
+		visiondata.time.f = src_time;
 
+		data_controler_.sentData(fd, visiondata);
+
+#endif
 		char test[100];
 		sprintf(test, "x:%0.4f", coord[0]);
 		cv::putText(img, test, cv::Point(10, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
@@ -378,14 +389,30 @@ void Factory::consumer()
 		sprintf(test, "z:%0.4f", coord[2]);
 		cv::putText(img, test, cv::Point(2 * img.cols / 3, 120), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
 
-		sprintf(test, "roll:%0.4f", rotation[0]*180/CV_PI);
+		sprintf(test, "roll:%0.4f", rotation[0] * 180 / CV_PI);
 		cv::putText(img, test, cv::Point(10, 160), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
 
-		sprintf(test, "pitch:%0.4f", rotation[1]*180/CV_PI);
+		sprintf(test, "pitch:%0.4f", rotation[1] * 180 / CV_PI);
 		cv::putText(img, test, cv::Point(img.cols / 3, 200), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
 
-		sprintf(test, "yaw:%0.4f", rotation[2]*180/CV_PI);
+		sprintf(test, "yaw:%0.4f", rotation[2] * 180 / CV_PI);
 		cv::putText(img, test, cv::Point(2 * img.cols / 3, 240), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
+
+		sprintf(test, "get yaw:%0.4f ", stm32data.yaw_data_.f);
+		cv::putText(img, test, cv::Point(10, 280), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
+
+		sprintf(test, "get pitch:%0.4f ", stm32data.pitch_data_.f);
+		cv::putText(img, test, cv::Point(img.cols / 2, 320), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
+		
+		if (stm32data.dubug_print)
+		{
+			sprintf(test, " is_get:%s ", "true");
+		}
+		else
+		{
+			sprintf(test, " is_get:%s ", "false");
+		}
+		cv::putText(img, test, cv::Point(10, 400), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
 
 		std::string windowName = "show";
 		cv::namedWindow(windowName, 0);
@@ -400,5 +427,85 @@ void Factory::consumer()
 
 		std::cout << "                                "
 				  << "帧率：" << FPS << std::endl;
+	}
+}
+
+Horizon::DataControler::Stm32Data Factory::TimeSynchronization(std::deque<Horizon::DataControler::Stm32Data> &stm32s, double src_time)
+{
+	if (stm32s.size() == 0)
+	{
+		Horizon::DataControler::Stm32Data a;
+		return a;
+	}
+	int index = 0;
+
+	for(auto stm32 : stm32s)
+	{
+		if(!stm32.dubug_print)
+		{
+		std::cout << "true" << std::endl;
+		}
+	}
+
+	vector<double> scale_time;
+	scale_time.reserve(200);
+	std::cout << "stm32 deque size: " << stm32s.size() << std::endl;
+
+	for (int i = 0; i < stm32s.size(); i++)
+	{
+		scale_time[i] = src_time - stm32s[i].time.f;
+	}
+
+	for (int i = 0; i < stm32s.size(); i++)
+	{
+		if (std::abs(scale_time[i]) < std::abs(scale_time[index]))
+		{
+			index = i;
+		}
+	}
+	std::cout << "finished!!" << std::endl;
+	Horizon::DataControler::Stm32Data stm32 = stm32s[index];
+
+	if(stm32.dubug_print)
+	{
+	}
+	// stm32data.dubug_print = stm32s[index].dubug_print;
+	// stm32data.pitch_data_.f = stm32s[index].pitch_data_.f;
+	// stm32data.yaw_data_.f = stm32s[index].yaw_data_.f;
+	// stm32data.time.f = stm32s[index].time.f;
+
+	return stm32;
+}
+
+void Factory::getdata()
+{
+	fd = OpenPort("/dev/ttyUSB0");
+	configureSerial(fd);
+	while (1)
+	{
+		if (fd == -1)
+		{
+			// std::cout << "[the serial dosen`t open!!!]" << std::endl;
+			// continue;
+		}
+
+		serial_mutex_.lock();
+		Horizon::DataControler::Stm32Data stm32data_temp;
+		data_controler_.getData(fd, stm32data_temp);
+		// 锁定问题
+		// stm32_deque_.Enqueue(stm32data_temp);
+		if (MCU_data_.size() < mcu_size_)
+		{
+			MCU_data_.push_back(stm32data_temp);
+		}
+		else
+		{
+			MCU_data_.pop_front();
+			MCU_data_.push_back(stm32data_temp);
+		}
+
+		// std::cout << "[receive finished!!!,enter queue]" << std::endl;
+		serial_mutex_.unlock();
+		// cv::waitKey(2);
 	}
 }

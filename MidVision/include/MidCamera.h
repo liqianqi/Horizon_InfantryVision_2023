@@ -97,7 +97,7 @@ public:
 	{
 		value_ = value;
 		iStatus = CameraSetExposureTime(hCamera,value_);
-		CameraSetGain(hCamera,100,100,80);
+		CameraSetGain(hCamera,100,100,78);
 	
 		if(iStatus == CAMERA_STATUS_SUCCESS)
 		{

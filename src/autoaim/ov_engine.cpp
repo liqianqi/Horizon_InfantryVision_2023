@@ -40,7 +40,7 @@ OpenvinoEngine::OpenvinoEngine()
     input_shape = network->input().get_shape();
 
     outputNode_size = network->outputs().size();
-    executable_network = core.compile_model(network, "CPU"); // SET DEVICE
+    executable_network = core.compile_model(network, "GPU"); // SET DEVICE
     infer_request = executable_network.create_infer_request();
 
 }
