@@ -1,8 +1,8 @@
 #include "../../include/thread/thread.h"
 // #define SAVE_VIDEO
 // #define RECORD_DATA
-// #define DAHENG
-#define MIDVISION
+#define DAHENG
+// #define MIDVISION
 // #define VIDEO
 mutex image_mutex_{}; // 数据上🔓
 
@@ -11,7 +11,7 @@ namespace GxCamera
 	// int GX_exp_time = 2533;
 
 	// int GX_gain = 4;
-	int GX_exp_time = 3133;
+	int GX_exp_time = 6000;
 
 	int GX_gain = 0;
 	DaHengCamera *camera_ptr_ = nullptr;
@@ -345,6 +345,10 @@ void Factory::consumer()
 		TimeSynchronization(MCU_data_, src_time);
 		serial_mutex_.unlock();
 
+		imu_data.pitch = stm32data.pitch_data_.f;
+		imu_data.yaw = stm32data.yaw_data_.f;
+		imu_data.timestamp = stm32data.time.f;
+
 #ifdef VIDEO
 		BUFF buff;
 		if (buffdector.run(img, buff))
@@ -366,14 +370,16 @@ void Factory::consumer()
 
 		if (objects.size() != 0)
 		{
-			std::pair<Eigen::Vector3d, Eigen::Vector3d> pose = pnp_solver_->poseCalculation(objects[0]);
-			coord = pose.first;
-			rotation = pose.second;
-			// GimbalPose gim = predic_pose_->run(imu_data, objects, src_time);
+			// std::pair<Eigen::Vector3d, Eigen::Vector3d> pose = pnp_solver_->poseCalculation(objects[0]);
+			// coord = pose.first;
+			// rotation = pose.second;
+			gim = predic_pose_->run(imu_data, objects, src_time);
+			coord = predic_pose_->last_pose_.first;
+			rotation = predic_pose_->last_pose_.second;
 		}
 
-		visiondata.yaw_data_.f = rotation[2] * 180 / CV_PI;
-		visiondata.pitch_data_.f = -10.5;
+		visiondata.yaw_data_.f = gim.yaw;
+		visiondata.pitch_data_.f = gim.pitch;
 		visiondata.time.f = src_time;
 
 		data_controler_.sentData(fd, visiondata);
@@ -404,6 +410,12 @@ void Factory::consumer()
 		sprintf(test, "get pitch:%0.4f ", stm32data.pitch_data_.f);
 		cv::putText(img, test, cv::Point(img.cols / 2, 320), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
 		
+		sprintf(test, "send yaw:%0.4f ", visiondata.yaw_data_.f);
+		cv::putText(img, test, cv::Point(10, 360), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
+
+		sprintf(test, "send pitch:%0.4f ", visiondata.pitch_data_.f);
+		cv::putText(img, test, cv::Point(img.cols / 2, 400), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
+		
 		if (stm32data.dubug_print)
 		{
 			sprintf(test, " is_get:%s ", "true");
@@ -412,7 +424,7 @@ void Factory::consumer()
 		{
 			sprintf(test, " is_get:%s ", "false");
 		}
-		cv::putText(img, test, cv::Point(10, 400), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
+		cv::putText(img, test, cv::Point(10, 420), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
 
 		std::string windowName = "show";
 		cv::namedWindow(windowName, 0);

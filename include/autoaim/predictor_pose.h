@@ -149,7 +149,7 @@ private:
 public:
 	ArmorObject ArmorSelect(std::vector<ArmorObject> &object);
 	
-private:
+public:
 	std::shared_ptr<PnpSolver> pnp_solve_ = std::make_shared<PnpSolver>(yaml); // 解算器
 	std::pair<Eigen::Vector3d, Eigen::Vector3d>	last_pose_;
 	CircularQueue<Eigen::Vector3d,60> velocities_; // 速度的循环队列，方便做拟合，装甲板切换初始化

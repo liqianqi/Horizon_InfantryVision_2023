@@ -48,7 +48,7 @@ public:
     BUFF buff;
     BuffDector buffdector;
     DetectorProcess infer;
-    // std::shared_ptr<PredictorPose> predic_pose_ = std::make_shared<PredictorPose>(); // 解算器
+    std::shared_ptr<PredictorPose> predic_pose_ = std::make_shared<PredictorPose>(); // 解算器
 	std::shared_ptr<PnpSolver> pnp_solver_ = std::make_shared<PnpSolver>(yaml);
 
     Eigen::Vector3d coord;
@@ -69,6 +69,7 @@ public:
     std::deque<Horizon::DataControler::Stm32Data> MCU_data_;
     int mcu_size_ = 200;
 
+	GimbalPose gim;
 };
 
 
