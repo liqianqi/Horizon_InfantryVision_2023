@@ -134,7 +134,6 @@ private:
 		init_ = true;
 		loss_cnt_ = 0;
 		last_state_ = ARMOR_STATE_::LOSS;
-		velocities_.init();
 	};
 private:
 	ARMOR_STATE_ state_;  // 装甲板识别状态
@@ -152,11 +151,11 @@ public:
 public:
 	std::shared_ptr<PnpSolver> pnp_solve_ = std::make_shared<PnpSolver>(yaml); // 解算器
 	std::pair<Eigen::Vector3d, Eigen::Vector3d>	last_pose_;
-	CircularQueue<Eigen::Vector3d,60> velocities_; // 速度的循环队列，方便做拟合，装甲板切换初始化
+	std::deque<Eigen::Vector3d> velocities_; // 速度的循环队列，方便做拟合，装甲板切换初始化
 	Eigen::Vector3d last_velocity_; // 上一时刻的速度
 	Eigen::Vector3d last_location_; // 上一时刻目标在云台系下的坐标
-	Eigen::Vector3d CeresVelocity(CircularQueue<Eigen::Vector3d,60> velocities_); // 最小二乘法拟合速度
-
+	Eigen::Vector3d CeresVelocity(std::deque<Eigen::Vector3d> velocities); // 最小二乘法拟合速度
+	int velocities_deque_size_ = 100;
 private:
 	float v0 = 28;	// 弹速
 	float bullteFlyTime(Eigen::Vector3d coord);

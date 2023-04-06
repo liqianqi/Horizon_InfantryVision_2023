@@ -117,7 +117,6 @@ namespace Horizon
 		}
 		else if (state_ == 1)
 		{ // dafu   110
-
 			SET_BIT((data.OnePointFive), 3);
 			SET_BIT((data.OnePointFive), 2);
 			CLEAR_BIT((data.OnePointFive), 1);

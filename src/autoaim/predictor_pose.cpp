@@ -289,6 +289,7 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 			init_ = true;
 			float fly_t = bullteFlyTime(last_pose_.first);
 			GimbalPose gm = gm_ptz;
+			velocities_.clear();
 			return gm;
 		}
 		state_ = ARMOR_STATE_::TRACK;
@@ -368,20 +369,31 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 	current_v[2] = (cam_ptz_pose.first[2] - last_pose_.first[2]) / (current_time_ - last_time_);
 
 	//velocities_.Enqueue(current_v);
+	//Eigen::Vector3d now_v = CeresVelocity(velocities_);
 
-	// Eigen::Vector3d now_v = CeresVelocity(velocities_);
+	if (velocities_.size() < velocities_deque_size_)
+	{
+		velocities_.push_back(current_v);
+	}
+	else
+	{
+		velocities_.pop_front();
+		velocities_.push_back(current_v);
+	}
 
-	Eigen::Vector3d now_v;
-	now_v[0] = 0;
-	now_v[1] = 0;
-	now_v[2] = 0;
+	// Eigen::Vector3d now_v;
+	// now_v[0] = 0;
+	// now_v[1] = 0;
+	// now_v[2] = 0;
+
+	Eigen::Vector3d now_v = CeresVelocity(velocities_);
 
 	Eigen::Vector3d predict_location;
 	predict_location[0] = cam_ptz_pose.first[0] + (now_v[0] * fly_t);
 	predict_location[1] = cam_ptz_pose.first[1] + (now_v[1] * fly_t);
 	predict_location[2] = cam_ptz_pose.first[2] + (now_v[2] * fly_t);
 
-	//bullteFlyTime(predict_location);
+	bullteFlyTime(predict_location);
 
 	last_location_ = cam_ptz_pose.first;
 	last_time_ = current_time_;
@@ -420,7 +432,7 @@ float PredictorPose::bullteFlyTime(Eigen::Vector3d coord)
 	distance1 = std::sqrt(p1.x * p1.x + p1.z * p1.z);
 	gm_ptz.yaw = std::sin(p1.x / distance1) * 180 / CV_PI;
 
-	std::cout << "[yaw: ]" << gm_ptz.yaw << std::endl;
+	//std::cout << "[yaw: ]" << gm_ptz.yaw << std::endl;
 
 	// pitch值
 	float a = -0.5 * g * (std::pow(distance1, 2) / std::pow(v0_, 2));
@@ -449,7 +461,7 @@ float PredictorPose::bullteFlyTime(Eigen::Vector3d coord)
 	// cout << "角度是：   " << tan_angle1  << "   " << tan_angle2 << endl;
 	float PI_pitch = (gm_ptz.pitch / 180) * CV_PI; // 弧度制
 
-	std::cout << "[pitch: ]" << gm_ptz.pitch << std::endl;
+	//std::cout << "[pitch: ]" << gm_ptz.pitch << std::endl;
 
 	return distance1 / (v0_ * std::cos(PI_pitch));
 }
@@ -457,4 +469,28 @@ float PredictorPose::bullteFlyTime(Eigen::Vector3d coord)
 ArmorObject PredictorPose::ArmorSelect(std::vector<ArmorObject> &objects)
 {
 	return objects[0];
+}
+
+Eigen::Vector3d PredictorPose::CeresVelocity(std::deque<Eigen::Vector3d> velocities) // 最小二乘法拟合速度
+{
+	float vx_means = 0;
+	float vy_means = 0;
+	float vz_means = 0;
+	for(int i = 0; i < velocities.size(); i++)
+	{
+		vx_means = velocities[i][0];
+		vy_means = velocities[i][1];
+		vz_means = velocities[i][2];
+	}
+
+	vx_means = vx_means/100.0f;
+	vy_means = vy_means/100.0f;
+	vz_means = vz_means/100.0f;
+
+	Eigen::Vector3d V_NOW;
+	V_NOW[0] = vx_means;
+	V_NOW[1] = vy_means;
+	V_NOW[2] = vz_means;
+
+	return V_NOW;
 }

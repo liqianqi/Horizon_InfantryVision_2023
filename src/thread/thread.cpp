@@ -1,8 +1,8 @@
 #include "../../include/thread/thread.h"
 // #define SAVE_VIDEO
 // #define RECORD_DATA
-#define DAHENG
-// #define MIDVISION
+// #define DAHENG
+#define MIDVISION
 // #define VIDEO
 mutex image_mutex_{}; // 数据上🔓
 
