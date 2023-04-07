@@ -1,5 +1,79 @@
 #include "../../include/autoaim/predictor_pose.h"
 
+#define SIN_POINT_NUM 400
+float SavePoint[SIN_POINT_NUM];         //保存点位
+float SecSavePoint[SIN_POINT_NUM];         //保存点位
+int Times = 0;
+
+void drawCurveData(cv::Point3f point)
+{
+
+	using namespace cv;
+	Mat poly_background_src_ = cv::Mat::zeros(640, 512, CV_8UC3);
+	poly_background_src_.setTo(cv::Scalar(0, 255, 0));
+
+	SavePoint[Times % SIN_POINT_NUM] = point.x*100;
+
+	char test[100];
+	sprintf(test, "vx:%0.4f", point.x*100);
+	cv::putText(poly_background_src_, test, cv::Point(10, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 1, 8);
+
+	if(point.x*100 > 30)
+	{
+		sprintf(test, " vx large:%s ", "true");
+	}else
+	{
+		sprintf(test, " vx large:%s ", "false");
+	}
+	cv::putText(poly_background_src_, test, cv::Point(10, 120), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 1, 8);
+
+	// 找最大值的方法只用循环一次就可以
+	float maxData = 0;
+	for (int i = 0; i <= Times && i < SIN_POINT_NUM; i++)
+	{
+		if (fabs(SavePoint[i]) > maxData)
+		{
+			maxData = fabs(SavePoint[i]);
+		}
+	}
+	// 计算倍率
+	float bei = 10;
+	if (10 * maxData > poly_background_src_.rows / 2)
+	{
+		bei = (poly_background_src_.rows / 2 - 10) / maxData;
+	}
+	if (10 * maxData < 150 && maxData != 0)
+	{
+		bei = 150.0 / maxData;
+	}
+	std::vector<cv::Point> points;
+	// 存入当前记录位置的后续单位,靠前的位置
+	int t = 0;
+	for (int i = (Times + 1) % SIN_POINT_NUM; i <= Times && i < SIN_POINT_NUM; i++)
+	{
+		points.push_back(Point((float)poly_background_src_.cols / SIN_POINT_NUM * t, poly_background_src_.rows / 2 + bei * SavePoint[i]));
+		t++;
+	}
+	// 绘制折线
+	// cv::polylines(poly_background_src_, points, false, cv::Scalar(255, 0, 0), 1, 8, 0);
+	// 存入之前的元素
+	for (int i = 0; i <= Times % SIN_POINT_NUM; i++)
+	{
+		points.push_back(Point((float)poly_background_src_.cols / SIN_POINT_NUM * t, poly_background_src_.rows / 2 + bei * SavePoint[i]));
+		t++;
+	}
+
+	cv::polylines(poly_background_src_, points, false, cv::Scalar(0, 0, 255), 3, 8, 0);
+
+	// cv::polylines(poly_background_src_, points, false, cv::Scalar(255, 0, 0), 3, 8, 0);
+
+	string windowName = "波形图-预测前";
+	namedWindow(windowName, 0);
+	imshow(windowName, poly_background_src_);
+	Times++;
+}
+
+
 PnpSolver::PnpSolver(const string yaml)
 {
 	cv::FileStorage fs(yaml, cv::FileStorage::READ);
@@ -170,7 +244,7 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver::poseCalculation(ArmorObje
 	double pitch = euler_angles[2]; // Z-world-axis 与 Z-cam-axis 在xoy上的夹角   pitch
 
 	Eigen::Vector3d coord;
-	coord << tvecs.ptr<double>(0)[0]/100, -tvecs.ptr<double>(0)[1]/100, tvecs.ptr<double>(0)[2]/100;
+	coord << tvecs.ptr<double>(0)[0] / 100, -tvecs.ptr<double>(0)[1] / 100, tvecs.ptr<double>(0)[2] / 100;
 
 	Eigen::Vector3d rotation;
 	rotation << roll, pitch, yaw;
@@ -202,44 +276,52 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver::poseCalculation(ArmorObje
  */
 std::pair<Eigen::Vector3d, Eigen::Vector3d> PredictorPose::cam2ptz(Eigen::Vector3d &cam_coord, cv::Mat &rotate_world_cam)
 {
-	cam_coord[1] = cam_coord[1] + 0.06;
+	// cam_coord[1] = cam_coord[1] + 0.06;
+	// cam_coord[2] = cam_coord[2] + 0.10;
+
+	cam_coord[1] = cam_coord[1] + 0.08;
 	cam_coord[2] = cam_coord[2] + 0.10;
-	
+
 	Eigen::Matrix3d rotate_world_cam_eigen;
 	cv::cv2eigen(rotate_world_cam, rotate_world_cam_eigen);
 
 	Eigen::Matrix3d yaw_rotation_matrix_R;
 	yaw_rotation_matrix_R
-		<< std::cos((imu_data_.yaw*CV_PI)/180), 0, std::sin((imu_data_.yaw*CV_PI)/180),
-							0, 					1, 					0,
-		-std::sin((imu_data_.yaw*CV_PI)/180), 	0, std::cos((imu_data_.yaw*CV_PI)/180);
+		<< std::cos((imu_data_.yaw * CV_PI) / 180),
+		0, std::sin((imu_data_.yaw * CV_PI) / 180),
+		0, 1, 0,
+		-std::sin((imu_data_.yaw * CV_PI) / 180), 0, std::cos((imu_data_.yaw * CV_PI) / 180);
 
 	Eigen::Matrix3d pitch_rotation_matrix_R;
 	pitch_rotation_matrix_R
-		<<  1,				0, 							0,
-			0, std::cos((imu_data_.pitch*CV_PI)/180), -std::sin((imu_data_.pitch*CV_PI)/180),
-			0, std::sin((imu_data_.pitch*CV_PI)/180), std::cos((imu_data_.pitch*CV_PI)/180);
-
+		<< 1,
+		0, 0,
+		0, std::cos((imu_data_.pitch * CV_PI) / 180), -std::sin((imu_data_.pitch * CV_PI) / 180),
+		0, std::sin((imu_data_.pitch * CV_PI) / 180), std::cos((imu_data_.pitch * CV_PI) / 180);
 
 	Eigen::Matrix3d pitch_rotation_matrix_t;
 	pitch_rotation_matrix_t
-		<< 	1,				0, 							0,
-			0, std::cos((imu_data_.pitch*CV_PI)/180), std::sin((imu_data_.pitch*CV_PI)/180),
-			0, -std::sin((imu_data_.pitch*CV_PI/180)), std::cos((imu_data_.pitch*CV_PI)/180);
+		<< 1,
+		0, 0,
+		0, std::cos((imu_data_.pitch * CV_PI) / 180), std::sin((imu_data_.pitch * CV_PI) / 180),
+		0, -std::sin((imu_data_.pitch * CV_PI / 180)), std::cos((imu_data_.pitch * CV_PI) / 180);
 
 	Eigen::Matrix3d yaw_rotation_matrix_t;
 	yaw_rotation_matrix_t
-		<< std::cos((imu_data_.yaw*CV_PI)/180),	0, std::sin((imu_data_.yaw*CV_PI)/180),
-							0, 					1, 				0,
-		   -std::sin((imu_data_.yaw*CV_PI)/180), 0, std::cos((imu_data_.yaw*CV_PI)/180);
-
+		<< std::cos((imu_data_.yaw * CV_PI) / 180),
+		0, std::sin((imu_data_.yaw * CV_PI) / 180),
+		0, 1, 0,
+		-std::sin((imu_data_.yaw * CV_PI) / 180), 0, std::cos((imu_data_.yaw * CV_PI) / 180);
 
 	/**
 	 * 写两种矩阵的原因是因为位置和姿态所用坐标系不同
 	 * 用欧拉较或泰特布莱恩角表示旋转，顺序十分重要，一般是X-Y-Z，但RM这种小角度，绕定轴动轴都一样顺序什么样结果都一样
 	 * 可以动手试试
 	 */
-	Eigen::Vector3d ptz_coord =  yaw_rotation_matrix_t * pitch_rotation_matrix_t * cam_coord;
+	Eigen::Vector3d ptz_coord = yaw_rotation_matrix_t * pitch_rotation_matrix_t * cam_coord;
+	Eigen::Matrix3d transform_vector;
+	transform_vector = yaw_rotation_matrix_t * pitch_rotation_matrix_t;
+	transform_vector_ = transform_vector.inverse();
 
 	Eigen::Matrix3d rotate_cam_ptz_eigen = pitch_rotation_matrix_R * yaw_rotation_matrix_R * rotate_world_cam_eigen;
 
@@ -353,7 +435,6 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 	std::cout << "[camera x]: " << world_cam_pose.first[0] << "  "
 			  << "[camera y]: " << world_cam_pose.first[1] << "  [camera z]: " << world_cam_pose.first[2] << std::endl;
 
-
 	std::pair<Eigen::Vector3d, Eigen::Vector3d> cam_ptz_pose;
 	cam_ptz_pose = cam2ptz(world_cam_pose.first, pnp_solve_->rotate_world_cam_);
 
@@ -368,8 +449,8 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 	current_v[1] = (cam_ptz_pose.first[1] - last_pose_.first[1]) / (current_time_ - last_time_);
 	current_v[2] = (cam_ptz_pose.first[2] - last_pose_.first[2]) / (current_time_ - last_time_);
 
-	//velocities_.Enqueue(current_v);
-	//Eigen::Vector3d now_v = CeresVelocity(velocities_);
+	// velocities_.Enqueue(current_v);
+	// Eigen::Vector3d now_v = CeresVelocity(velocities_);
 
 	if (velocities_.size() < velocities_deque_size_)
 	{
@@ -388,10 +469,24 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 
 	Eigen::Vector3d now_v = CeresVelocity(velocities_);
 
+	// now_v[0] = 0;
+	// now_v[1] = 0;
+	// now_v[2] = 0;
+	//Eigen::Vector3d now_v = current_v;
+	cv::Point3f point;
+	point.x = now_v[0];
+	drawCurveData(point);
+
 	Eigen::Vector3d predict_location;
-	predict_location[0] = cam_ptz_pose.first[0] + (now_v[0] * fly_t);
-	predict_location[1] = cam_ptz_pose.first[1] + (now_v[1] * fly_t);
-	predict_location[2] = cam_ptz_pose.first[2] + (now_v[2] * fly_t);
+
+	
+
+	std::cout << "[fly time]" << fly_t << std::endl;
+	std::cout << "now speed " << point.x << std::endl;
+	std::cout << "predict expression " << now_v[0] * (fly_t)*100 << std::endl;
+	predict_location[0] = cam_ptz_pose.first[0] + (now_v[0] * (fly_t ));
+	predict_location[1] = cam_ptz_pose.first[1] + (now_v[1] * (fly_t ));
+	predict_location[2] = cam_ptz_pose.first[2] + (now_v[2] * (fly_t ));
 
 	bullteFlyTime(predict_location);
 
@@ -400,6 +495,7 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 	last_velocity_ = now_v;
 	last_state_ = state_;
 	last_pose_ = cam_ptz_pose;
+	predict_location_ = predict_location;
 
 	GimbalPose gm = gm_ptz;
 	return gm;
@@ -432,7 +528,7 @@ float PredictorPose::bullteFlyTime(Eigen::Vector3d coord)
 	distance1 = std::sqrt(p1.x * p1.x + p1.z * p1.z);
 	gm_ptz.yaw = std::sin(p1.x / distance1) * 180 / CV_PI;
 
-	//std::cout << "[yaw: ]" << gm_ptz.yaw << std::endl;
+	// std::cout << "[yaw: ]" << gm_ptz.yaw << std::endl;
 
 	// pitch值
 	float a = -0.5 * g * (std::pow(distance1, 2) / std::pow(v0_, 2));
@@ -461,7 +557,7 @@ float PredictorPose::bullteFlyTime(Eigen::Vector3d coord)
 	// cout << "角度是：   " << tan_angle1  << "   " << tan_angle2 << endl;
 	float PI_pitch = (gm_ptz.pitch / 180) * CV_PI; // 弧度制
 
-	//std::cout << "[pitch: ]" << gm_ptz.pitch << std::endl;
+	// std::cout << "[pitch: ]" << gm_ptz.pitch << std::endl;
 
 	return distance1 / (v0_ * std::cos(PI_pitch));
 }
@@ -476,16 +572,18 @@ Eigen::Vector3d PredictorPose::CeresVelocity(std::deque<Eigen::Vector3d> velocit
 	float vx_means = 0;
 	float vy_means = 0;
 	float vz_means = 0;
-	for(int i = 0; i < velocities.size(); i++)
+
+	std::cout << "[velocities size is : ]" << velocities.size() << std::endl;
+	for (int i = 0; i < velocities.size(); i++)
 	{
 		vx_means = velocities[i][0];
 		vy_means = velocities[i][1];
 		vz_means = velocities[i][2];
 	}
 
-	vx_means = vx_means/100.0f;
-	vy_means = vy_means/100.0f;
-	vz_means = vz_means/100.0f;
+	vx_means = vx_means / velocities.size();
+	vy_means = vy_means / velocities.size();
+	vz_means = vz_means / velocities.size();
 
 	Eigen::Vector3d V_NOW;
 	V_NOW[0] = vx_means;

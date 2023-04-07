@@ -87,6 +87,10 @@
 		"stdvector": "cpp",
 		"tensor": "cpp",
 		"threadpool": "cpp",
-		"specialfunctions": "cpp"
+		"specialfunctions": "cpp",
+		"codecvt": "cpp",
+		"regex": "cpp",
+		"shared_mutex": "cpp",
+		"valarray": "cpp"
 	}
 }

@@ -1,17 +1,38 @@
 #include "../../include/thread/thread.h"
 // #define SAVE_VIDEO
 // #define RECORD_DATA
-// #define DAHENG
-#define MIDVISION
+#define DAHENG
+// #define MIDVISION
 // #define VIDEO
 mutex image_mutex_{}; // 数据上🔓
+
+// 世界坐标系内坐标--->相机坐标系内坐标
+inline Eigen::Vector3d pw_to_pc(const Eigen::Vector3d &pw, const Eigen::Matrix3d &R_CW)
+{
+	return R_CW * pw;
+}
+
+// 相机坐标系内坐标--->图像坐标系内像素坐标
+inline Eigen::Vector3d pc_to_pu(const Eigen::Vector3d &pc, const Eigen::Matrix3d &F)
+{
+	return F * pc / pc(2, 0);
+}
+
+// 将世界坐标系内一点，投影到图像中，并绘制该点
+// inline void re_project_point(cv::Mat &image, const Eigen::Vector3d &pw,
+// 							 const Eigen::Matrix3d &R_IW, const cv::Scalar &color)
+// {
+// 	Eigen::Vector3d pc = pw_to_pc(pw, R_IW);
+// 	Eigen::Vector3d pu = pc_to_pu(pc);
+// 	cv::circle(image, {int(pu(0, 0)), int(pu(1, 0))}, 3, color, 2);
+// }
 
 namespace GxCamera
 {
 	// int GX_exp_time = 2533;
 
 	// int GX_gain = 4;
-	int GX_exp_time = 6000;
+	int GX_exp_time = 10000;
 
 	int GX_gain = 0;
 	DaHengCamera *camera_ptr_ = nullptr;
@@ -47,6 +68,7 @@ namespace MidCamera
 
 void Factory::producer()
 {
+
 #ifdef VIDEO
 	cv::VideoCapture cap("/home/liqianqi/Horizon_InfantryVision-2023/src/thread/blue_buff.mp4");
 	cv::Mat src;
@@ -409,13 +431,13 @@ void Factory::consumer()
 
 		sprintf(test, "get pitch:%0.4f ", stm32data.pitch_data_.f);
 		cv::putText(img, test, cv::Point(img.cols / 2, 320), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
-		
+
 		sprintf(test, "send yaw:%0.4f ", visiondata.yaw_data_.f);
 		cv::putText(img, test, cv::Point(10, 360), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
 
 		sprintf(test, "send pitch:%0.4f ", visiondata.pitch_data_.f);
 		cv::putText(img, test, cv::Point(img.cols / 2, 400), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
-		
+
 		if (stm32data.dubug_print)
 		{
 			sprintf(test, " is_get:%s ", "true");
@@ -425,6 +447,15 @@ void Factory::consumer()
 			sprintf(test, " is_get:%s ", "false");
 		}
 		cv::putText(img, test, cv::Point(10, 420), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
+
+		// sprintf(test, "x speed:%0.4f ", predic_pose_->last_velocity_[0]*1000);
+		// cv::putText(img, test, cv::Point(img.cols / 2, 440), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
+
+		Eigen::Vector3d pc = pw_to_pc(predic_pose_->predict_location_, predic_pose_->transform_vector_);
+		Eigen::Matrix3d F;
+		cv2eigen(predic_pose_->pnp_solve_->K_,F);
+		Eigen::Vector3d pu = pc_to_pu(pc,F);
+		cv::circle(img, {int(pu(0, 0)), int(pu(1, 0))}, 3, cv::Scalar(0,0,255), 2);
 
 		std::string windowName = "show";
 		cv::namedWindow(windowName, 0);
@@ -492,7 +523,8 @@ void Factory::getdata()
 	configureSerial(fd);
 	while (1)
 	{
-		//cv::waitKey(1);
+		// cv::waitKey(1);
+		// cv::waitKey(2);
 		if (fd == -1)
 		{
 			// std::cout << "[the serial dosen`t open!!!]" << std::endl;
@@ -503,14 +535,15 @@ void Factory::getdata()
 		data_controler_.getData(fd, stm32data_temp);
 		// 锁定问题
 		// stm32_deque_.Enqueue(stm32data_temp);
-		if(!stm32data_temp.dubug_print)
+		if (!stm32data_temp.dubug_print)
 		{
-			//std::cout << "is_not_receive" << std::endl;
+			// std::cout << "is_not_receive" << std::endl;
 			serial_mutex_.unlock();
 			continue;
-		}else
+		}
+		else
 		{
-			//std::cout << "is_received" << std::endl;
+			// std::cout << "is_received" << std::endl;
 		}
 
 		if (MCU_data_.size() < mcu_size_)

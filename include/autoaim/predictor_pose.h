@@ -19,7 +19,7 @@ public:
 	PnpSolver(const string yaml);
 
 	std::pair<Eigen::Vector3d,Eigen::Vector3d> poseCalculation(ArmorObject &obj);
-private:
+public:
 	cv::Mat K_;								// 内参
 	cv::Mat distCoeffs_;					// 畸变系数
 public:
@@ -155,7 +155,10 @@ public:
 	Eigen::Vector3d last_velocity_; // 上一时刻的速度
 	Eigen::Vector3d last_location_; // 上一时刻目标在云台系下的坐标
 	Eigen::Vector3d CeresVelocity(std::deque<Eigen::Vector3d> velocities); // 最小二乘法拟合速度
-	int velocities_deque_size_ = 100;
+	int velocities_deque_size_ = 60;
+
+    Eigen::Matrix3d transform_vector_;
+    Eigen::Vector3d predict_location_;
 private:
 	float v0 = 28;	// 弹速
 	float bullteFlyTime(Eigen::Vector3d coord);

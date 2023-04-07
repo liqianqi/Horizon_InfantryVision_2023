@@ -2,7 +2,7 @@
 
 namespace Horizon
 {
-#define DATA_LENGTH 16 // 接受的数据位数
+#define DATA_LENGTH 17 // 接受的数据位数
 #define SERIAL_RECIVER_TRANSFER_TIME 0.001875f
 
 	int OpenPort(const char *Portname)
@@ -55,6 +55,20 @@ namespace Horizon
 		port_set.c_cc[VMIN] = 0;
 
 		tcsetattr(fd, TCSANOW, &port_set);
+
+		// struct termios port_set;
+
+		// // 波特率
+		// cfsetispeed(&port_set, B115200);
+		// cfsetospeed(&port_set, B115200);
+		// // No parity
+		// port_set.c_cflag &= ~PARENB; // 无奇偶校验
+		// port_set.c_cflag &= ~CSTOPB; // 停止位:1bit
+		// port_set.c_cflag &= ~CSIZE;	 // 清除数据位掩码
+		// port_set.c_cflag |= CS8;
+
+		// tcsetattr(fd, TCSANOW, &port_set);
+		
 		return (fd);
 	}
 
@@ -174,7 +188,7 @@ namespace Horizon
 		// 这是干什么的
 
 		ioctl(fd, FIONREAD, &bytes); // 1199
-		//cout << "bytes      " << bytes << endl;
+		// cout << "bytes      " << bytes << endl;
 		if (bytes < DATA_LENGTH)
 		{
 			return;
@@ -206,6 +220,14 @@ namespace Horizon
 			}
 		}
 
+		char rec_byte;
+		rec_byte = rec_bytes[FirstIndex + 1] + rec_bytes[FirstIndex + 2] + rec_bytes[FirstIndex + 3] + rec_bytes[FirstIndex + 4]+rec_bytes[FirstIndex + 5]+rec_bytes[FirstIndex + 6]+rec_bytes[FirstIndex + 7]+rec_bytes[FirstIndex + 8];
+		if(rec_bytes[FirstIndex+15] != rec_byte)
+		{
+			FirstIndex = -1;
+			LastIndex = -1;
+		}
+
 		if (FirstIndex != -1 && LastIndex != -1)
 		{
 			// get_data.IsHave = true;
@@ -218,6 +240,10 @@ namespace Horizon
 			get_data.yaw_data_.c[1] = rec_bytes[FirstIndex + 6];
 			get_data.yaw_data_.c[2] = rec_bytes[FirstIndex + 7];
 			get_data.yaw_data_.c[3] = rec_bytes[FirstIndex + 8];
+
+			// std::cout << "[get yaw is " << rec_bytes[FirstIndex + 5] << " ]" << std::endl;
+
+			//printf("first %d, second %d, third %d, forth %d\n", rec_bytes[1], rec_bytes[2], rec_bytes[3], rec_bytes[4]);
 
 			get_data.OnePointFive = rec_bytes[FirstIndex + 9];
 
@@ -256,12 +282,12 @@ namespace Horizon
 			get_data.init_firing_rate = rec_bytes[FirstIndex + 14];
 
 			// get_data.IsHave = true;
-			cout<<"接收完成"<<get_data.time.f<<endl;
+			cout << "接收完成" << get_data.time.f << endl;
 			get_data.dubug_print = true;
 		}
 		else
 		{
-			cout<<"接受失败!"<<endl;
+			cout << "接受失败!" << endl;
 			// get_data.IsHave = false;
 			get_data.dubug_print = false;
 		}

@@ -67,7 +67,7 @@ public:
 
     CircularQueue<Horizon::DataControler::Stm32Data,1000> stm32_deque_;
     std::deque<Horizon::DataControler::Stm32Data> MCU_data_;
-    int mcu_size_ = 200;
+    int mcu_size_ = 5;
 
 	GimbalPose gim;
 };
