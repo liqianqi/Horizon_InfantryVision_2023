@@ -444,22 +444,24 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 
 	std::cout << "the first fly time geted" << std::endl;
 
-	Eigen::Vector3d current_v; // 现在的速度: 直接计算的速度，未经过拟合
-	current_v[0] = (cam_ptz_pose.first[0] - last_pose_.first[0]) / (current_time_ - last_time_);
-	current_v[1] = (cam_ptz_pose.first[1] - last_pose_.first[1]) / (current_time_ - last_time_);
-	current_v[2] = (cam_ptz_pose.first[2] - last_pose_.first[2]) / (current_time_ - last_time_);
+	Eigen::Vector4d current_state; // 现在的速度: 直接计算的速度，未经过拟合
+	current_state[0] = cam_ptz_pose.first[0];
+	current_state[1] = cam_ptz_pose.first[1];
+	current_state[2] = cam_ptz_pose.first[2];
+	current_state[3] = current_time_;
+
 
 	// velocities_.Enqueue(current_v);
 	// Eigen::Vector3d now_v = CeresVelocity(velocities_);
 
 	if (velocities_.size() < velocities_deque_size_)
 	{
-		velocities_.push_back(current_v);
+		velocities_.push_back(current_state);
 	}
 	else
 	{
 		velocities_.pop_front();
-		velocities_.push_back(current_v);
+		velocities_.push_back(current_state);
 	}
 
 	// Eigen::Vector3d now_v;
@@ -479,7 +481,6 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 
 	Eigen::Vector3d predict_location;
 
-	
 
 	std::cout << "[fly time]" << fly_t << std::endl;
 	std::cout << "now speed " << point.x << std::endl;
@@ -567,28 +568,55 @@ ArmorObject PredictorPose::ArmorSelect(std::vector<ArmorObject> &objects)
 	return objects[0];
 }
 
-Eigen::Vector3d PredictorPose::CeresVelocity(std::deque<Eigen::Vector3d> velocities) // 最小二乘法拟合速度
+Eigen::Vector3d PredictorPose::CeresVelocity(std::deque<Eigen::Vector4d> velocities) // 最小二乘法拟合速度
 {
-	float vx_means = 0;
-	float vy_means = 0;
-	float vz_means = 0;
-
-	std::cout << "[velocities size is : ]" << velocities.size() << std::endl;
-	for (int i = 0; i < velocities.size(); i++)
+	int N  = velocities.size();
+	if(velocities.size() == 0 || velocities.size() == 1)
 	{
-		vx_means = velocities[i][0];
-		vy_means = velocities[i][1];
-		vz_means = velocities[i][2];
+		return {0,0,0};
 	}
 
-	vx_means = vx_means / velocities.size();
-	vy_means = vy_means / velocities.size();
-	vz_means = vz_means / velocities.size();
+	double A = 0; // ti*xi
+	double B = 0; // ti
+	double C = 0; // xi*xi
+	double D = 0; // xi
 
-	Eigen::Vector3d V_NOW;
-	V_NOW[0] = vx_means;
-	V_NOW[1] = vy_means;
-	V_NOW[2] = vz_means;
+	for(int i = 0; i < velocities.size(); i++)
+	{
+		A += velocities[i][0]*velocities[i][3];
+		B += velocities[i][3];
+		C += velocities[i][0]*velocities[i][0];
+		D += velocities[i][0];
+	}
+	double vx = (N*A - B*D)/(N*C - D*D);
 
-	return V_NOW;
+	A = 0; // ti*yi
+	B = 0; // ti
+	C = 0; // yi*yi
+	D = 0; // yi
+
+	for(int i = 0; i < velocities.size(); i++)
+	{
+		A += velocities[i][1]*velocities[i][3];
+		B += velocities[i][3];
+		C += velocities[i][1]*velocities[i][1];
+		D += velocities[i][1];
+	}
+	double vy = (N*A - B*D)/(N*C - D*D);
+
+	A = 0; // ti*zi
+	B = 0; // ti
+	C = 0; // zi*zi
+	D = 0; // zi
+
+	for(int i = 0; i < velocities.size(); i++)
+	{
+		A += velocities[i][2]*velocities[i][3];
+		B += velocities[i][3];
+		C += velocities[i][2]*velocities[i][2];
+		D += velocities[i][2];
+	}
+	double vz = (N*A - B*D)/(N*C - D*D);
+
+	return {vx,vy,vz};
 }

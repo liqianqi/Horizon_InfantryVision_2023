@@ -151,10 +151,10 @@ public:
 public:
 	std::shared_ptr<PnpSolver> pnp_solve_ = std::make_shared<PnpSolver>(yaml); // 解算器
 	std::pair<Eigen::Vector3d, Eigen::Vector3d>	last_pose_;
-	std::deque<Eigen::Vector3d> velocities_; // 速度的循环队列，方便做拟合，装甲板切换初始化
+	std::deque<Eigen::Vector4d> velocities_; // 速度的循环队列，方便做拟合，装甲板切换初始化
 	Eigen::Vector3d last_velocity_; // 上一时刻的速度
 	Eigen::Vector3d last_location_; // 上一时刻目标在云台系下的坐标
-	Eigen::Vector3d CeresVelocity(std::deque<Eigen::Vector3d> velocities); // 最小二乘法拟合速度
+	Eigen::Vector3d CeresVelocity(std::deque<Eigen::Vector4d> velocities); // 最小二乘法拟合速度
 	int velocities_deque_size_ = 60;
 
     Eigen::Matrix3d transform_vector_;
