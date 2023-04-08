@@ -9,7 +9,13 @@ mutex image_mutex_{}; // 数据上🔓
 // 世界坐标系内坐标--->相机坐标系内坐标
 inline Eigen::Vector3d pw_to_pc(const Eigen::Vector3d &pw, const Eigen::Matrix3d &R_CW)
 {
-	return R_CW * pw;
+	Eigen::Vector3d pw_t;
+	pw_t = R_CW * pw;
+	pw_t[0] = pw_t[0];
+	pw_t[1] = pw_t[1] - Y_BIAS;
+	pw_t[2] = pw_t[2] - Z_BIAS;
+
+	return pw_t;
 }
 
 // 相机坐标系内坐标--->图像坐标系内像素坐标
@@ -448,14 +454,17 @@ void Factory::consumer()
 		}
 		cv::putText(img, test, cv::Point(10, 420), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
 
-		// sprintf(test, "x speed:%0.4f ", predic_pose_->last_velocity_[0]*1000);
-		// cv::putText(img, test, cv::Point(img.cols / 2, 440), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
+		sprintf(test, "x speed:%0.4f ", predic_pose_->last_velocity_[2]*100);
+		cv::putText(img, test, cv::Point(img.cols / 2, 460), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
+
+		sprintf(test, "move is :%0.4f ", predic_pose_->move_);
+		cv::putText(img, test, cv::Point(img.cols / 2, 500), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
 
 		Eigen::Vector3d pc = pw_to_pc(predic_pose_->predict_location_, predic_pose_->transform_vector_);
 		Eigen::Matrix3d F;
 		cv2eigen(predic_pose_->pnp_solve_->K_,F);
 		Eigen::Vector3d pu = pc_to_pu(pc,F);
-		cv::circle(img, {int(pu(0, 0)), int(pu(1, 0))}, 3, cv::Scalar(0,0,255), 2);
+		cv::circle(img, {int(pu(0, 0)), int(predic_pose_->obj_pixe_.y)}, 3, cv::Scalar(0,0,255), 2);
 
 		std::string windowName = "show";
 		cv::namedWindow(windowName, 0);

@@ -17,6 +17,9 @@
 #include <algorithm>
 #include <opencv2/core/eigen.hpp>
 
+#define Y_BIAS 0.08
+#define Z_BIAS 0.10
+
 namespace lqq
 {
     template <int MAX_SIZE, class T>

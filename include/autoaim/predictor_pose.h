@@ -33,8 +33,49 @@ enum class ARMOR_STATE_
 	TRACK = 2,
 	GYRO = 3
 };
+
+struct Predict {
+    /*
+     * 此处定义匀速直线运动模型
+     */
+    template<class T>
+    void operator()(const T* x0, T* x1) {    // x0[6],x1[6]
+        x1[0] = x0[0] + delta_t * x0[1];  //0.1, x
+        x1[1] = x0[1];  //100
+        x1[2] = x0[2] + delta_t * x0[3];  //0.1, y
+        x1[3] = x0[3];  //100
+        x1[4] = x0[4] + delta_t * x0[5];  //0.1, z 
+        x1[5] = x0[5];  //100
+    }
+
+    double delta_t;
+};
+
+template<class T>
+void xyz2pyd(T* xyz, T* pyd)  // xyz[3], pyd[3]
+{
+    /*
+     * 工具函数：将 xyz 转化为 pitch、yaw、distance
+     */
+    pyd[0] = ceres::atan2(xyz[1], ceres::sqrt(xyz[0]*xyz[0]+xyz[2]*xyz[2]));  // pitch
+    pyd[1] = ceres::atan2(xyz[2], xyz[0]);  // yaw
+    pyd[2] = ceres::sqrt(xyz[0]*xyz[0]+xyz[1]*xyz[1]+xyz[2]*xyz[2]);  // distance
+}
+
+struct Measure 
+{
+    /*
+     * 工具函数的类封装
+     */
+    template<class T>
+    void operator()(const T* x, T* y) { // x[6], y[3]
+        T x_[3] = {x[0], x[2], x[4]};
+        xyz2pyd(x_, y);
+    }
+};
+
 /**
- * @brief  自适应扩展卡尔曼滤波, 花山甲老师写的自适应扩展卡尔曼滤波实在优雅, 我没有信心写出更好的
+ * @brief  自适应扩展卡尔曼滤波, 花山甲老师写的自适应扩展卡尔曼滤波实在优雅, 我没有信心写出更好的,baipiao(bushi)
  *
  * @author 上交:唐欣阳(花山甲老师)
  */
@@ -51,6 +92,10 @@ class AdaptiveEKF
 public:
     explicit AdaptiveEKF(const VectorX &X0 = VectorX::Zero())
         : Xe(X0), P(MatrixXX::Identity()), Q(MatrixXX::Identity()), R(MatrixYY::Identity()) {}
+    
+    void init(const VectorX &X0 = VectorX::Zero()) {
+        Xe = X0;
+    }
 
     template <class Func>
     VectorX predict(Func &&func)
@@ -155,14 +200,19 @@ public:
 	Eigen::Vector3d last_velocity_; // 上一时刻的速度
 	Eigen::Vector3d last_location_; // 上一时刻目标在云台系下的坐标
 	Eigen::Vector3d CeresVelocity(std::deque<Eigen::Vector4d> velocities); // 最小二乘法拟合速度
-	int velocities_deque_size_ = 60;
+	int velocities_deque_size_ = 40;
 
     Eigen::Matrix3d transform_vector_;
     Eigen::Vector3d predict_location_;
-private:
+public:
 	float v0 = 28;	// 弹速
 	float bullteFlyTime(Eigen::Vector3d coord);
 	GimbalPose gm_ptz;	// 角度制
 	double last_time_;
 	double current_time_;
+    cv::Point2f obj_pixe_;
+public:
+    AdaptiveEKF<6, 3> ekf;  // 创建ekf
+    float move_;
+
 };

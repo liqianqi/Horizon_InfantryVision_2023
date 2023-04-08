@@ -89,10 +89,10 @@ void drawPred(float conf, int left, int top, int right, int bottom, cv::Mat &fra
 		printf("[%d,%d]\n", landmark[2 * i], landmark[2 * i + 1]);
 		cv::circle(frame, cv::Point(landmark[2 * i], landmark[2 * i + 1]), 1, cv::Scalar(0, 0, 255), -1);
 	}
-	cv::line(frame, cv::Point(landmark[0], landmark[1]), cv::Point(landmark[2], landmark[3]), cv::Scalar(127, 255, 127), 1, 8);
-	cv::line(frame, cv::Point(landmark[2], landmark[3]), cv::Point(landmark[4], landmark[5]), cv::Scalar(127, 255, 127), 1, 8);
-	cv::line(frame, cv::Point(landmark[4], landmark[5]), cv::Point(landmark[6], landmark[7]), cv::Scalar(127, 255, 127), 1, 8);
-	cv::line(frame, cv::Point(landmark[6], landmark[7]), cv::Point(landmark[0], landmark[1]), cv::Scalar(127, 255, 127), 1, 8);
+	cv::line(frame, cv::Point(landmark[0], landmark[1]), cv::Point(landmark[2], landmark[3]), cv::Scalar(211,160,211), 1, 8);
+	cv::line(frame, cv::Point(landmark[2], landmark[3]), cv::Point(landmark[4], landmark[5]), cv::Scalar(211,160,211), 1, 8);
+	cv::line(frame, cv::Point(landmark[4], landmark[5]), cv::Point(landmark[6], landmark[7]), cv::Scalar(211,160,211), 1, 8);
+	cv::line(frame, cv::Point(landmark[6], landmark[7]), cv::Point(landmark[0], landmark[1]), cv::Scalar(211,160,211), 1, 8);
 
 	// cv::imwrite("detect.jpg",frame);
 }
@@ -129,7 +129,7 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
 					{
 						int id = argmax(pdata + 15, 36);
 						float face_score = pdata[15 + id];
-						if (face_score < 0.5)
+						if (face_score < 0.55)
 							continue;
 
 						float cx = pdata[0] * ratiow; /// cx

@@ -2,7 +2,7 @@
 
 #define SIN_POINT_NUM 400
 float SavePoint[SIN_POINT_NUM];         //保存点位
-float SecSavePoint[SIN_POINT_NUM];         //保存点位
+float SecSavePoint[SIN_POINT_NUM];      //保存点位
 int Times = 0;
 
 void drawCurveData(cv::Point3f point)
@@ -72,7 +72,6 @@ void drawCurveData(cv::Point3f point)
 	imshow(windowName, poly_background_src_);
 	Times++;
 }
-
 
 PnpSolver::PnpSolver(const string yaml)
 {
@@ -279,8 +278,8 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PredictorPose::cam2ptz(Eigen::Vector
 	// cam_coord[1] = cam_coord[1] + 0.06;
 	// cam_coord[2] = cam_coord[2] + 0.10;
 
-	cam_coord[1] = cam_coord[1] + 0.08;
-	cam_coord[2] = cam_coord[2] + 0.10;
+	cam_coord[1] = cam_coord[1] + Y_BIAS;
+	cam_coord[2] = cam_coord[2] + Z_BIAS;
 
 	Eigen::Matrix3d rotate_world_cam_eigen;
 	cv::cv2eigen(rotate_world_cam, rotate_world_cam_eigen);
@@ -320,7 +319,7 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PredictorPose::cam2ptz(Eigen::Vector
 	 */
 	Eigen::Vector3d ptz_coord = yaw_rotation_matrix_t * pitch_rotation_matrix_t * cam_coord;
 	Eigen::Matrix3d transform_vector;
-	transform_vector = yaw_rotation_matrix_t * pitch_rotation_matrix_t;
+	transform_vector = pitch_rotation_matrix_t * yaw_rotation_matrix_t;
 	transform_vector_ = transform_vector.inverse();
 
 	Eigen::Matrix3d rotate_cam_ptz_eigen = pitch_rotation_matrix_R * yaw_rotation_matrix_R * rotate_world_cam_eigen;
@@ -429,6 +428,8 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 	state_ = ARMOR_STATE_::TRACK;
 	ArmorObject obj = ArmorSelect(objects);
 
+	obj_pixe_ = (obj.pts[0] + obj.pts[2])/2;
+
 	std::pair<Eigen::Vector3d, Eigen::Vector3d> world_cam_pose;
 	world_cam_pose = pnp_solve_->poseCalculation(obj);
 
@@ -437,6 +438,36 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 
 	std::pair<Eigen::Vector3d, Eigen::Vector3d> cam_ptz_pose;
 	cam_ptz_pose = cam2ptz(world_cam_pose.first, pnp_solve_->rotate_world_cam_);
+
+	//========================EKF========================//
+
+	std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
+
+    Predict predictfunc;
+    Measure measure;
+
+	Eigen::Matrix<double, 6, 1> Xh;
+	Xh << last_location_(0, 0), last_velocity_[0], last_location_(1, 0), last_velocity_[1], last_location_(2, 0) ,last_velocity_[2];
+	ekf.init();
+
+	Eigen::Matrix<double, 6, 1> Xr;
+	Xr << cam_ptz_pose.first(0, 0), 0, cam_ptz_pose.first(1, 0), 0, cam_ptz_pose.first(2, 0) ,0;
+	Eigen::Matrix<double, 3, 1> Yr;
+	measure(Xr.data(), Yr.data());      // 转化成pitch,yaw,distance
+	predictfunc.delta_t = (current_time_ - last_time_);
+	ekf.predict(predictfunc);           // 更新预测器，此时预测器里的是预测值
+    Eigen::Matrix<double, 6, 1> Xe = ekf.update(measure, Yr);   // 更新滤波器，输入真实的球面坐标 Yr
+
+	// cam_ptz_pose.first[0] = Xe[0];
+	// cam_ptz_pose.first[1] = Xe[2];
+	// cam_ptz_pose.first[2] = Xe[4];
+
+	std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+	std::chrono::duration<double> time_run = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t0);
+
+	std::cout << "[EKF time is : " <<  time_run.count()*1000 << " ]" << std::endl;
+
+	//========================EKF========================//
 
 	std::cout << "world coord solve finished" << std::endl;
 
@@ -450,10 +481,6 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 	current_state[2] = cam_ptz_pose.first[2];
 	current_state[3] = current_time_;
 
-
-	// velocities_.Enqueue(current_v);
-	// Eigen::Vector3d now_v = CeresVelocity(velocities_);
-
 	if (velocities_.size() < velocities_deque_size_)
 	{
 		velocities_.push_back(current_state);
@@ -464,30 +491,25 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 		velocities_.push_back(current_state);
 	}
 
-	// Eigen::Vector3d now_v;
-	// now_v[0] = 0;
-	// now_v[1] = 0;
-	// now_v[2] = 0;
-
 	Eigen::Vector3d now_v = CeresVelocity(velocities_);
 
 	// now_v[0] = 0;
-	// now_v[1] = 0;
+	now_v[1] = 0;
 	// now_v[2] = 0;
-	//Eigen::Vector3d now_v = current_v;
 	cv::Point3f point;
 	point.x = now_v[0];
-	drawCurveData(point);
+	// drawCurveData(point);
 
 	Eigen::Vector3d predict_location;
 
+	std::cout << "[ vx: " << now_v[0] << " vy: " << now_v[1] << " vz: " << now_v[2] << " ]" << std::endl;
 
-	std::cout << "[fly time]" << fly_t << std::endl;
-	std::cout << "now speed " << point.x << std::endl;
-	std::cout << "predict expression " << now_v[0] * (fly_t)*100 << std::endl;
-	predict_location[0] = cam_ptz_pose.first[0] + (now_v[0] * (fly_t ));
-	predict_location[1] = cam_ptz_pose.first[1] + (now_v[1] * (fly_t ));
-	predict_location[2] = cam_ptz_pose.first[2] + (now_v[2] * (fly_t ));
+	predict_location[0] = cam_ptz_pose.first[0] + (now_v[0] * (fly_t));
+	predict_location[1] = cam_ptz_pose.first[1] + (now_v[1] * (fly_t));
+	predict_location[2] = cam_ptz_pose.first[2] + (now_v[2] * (fly_t));
+
+	std::cout << "predict expression " << (now_v[0] * (fly_t )) << " cm " << std::endl;
+	move_ = now_v[2] * (fly_t )*100;
 
 	bullteFlyTime(predict_location);
 
@@ -499,6 +521,8 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 	predict_location_ = predict_location;
 
 	GimbalPose gm = gm_ptz;
+	gm.yaw = gm.yaw + 2;
+	gm.pitch = gm.pitch - 0.5;
 	return gm;
 }
 
@@ -576,47 +600,52 @@ Eigen::Vector3d PredictorPose::CeresVelocity(std::deque<Eigen::Vector4d> velocit
 		return {0,0,0};
 	}
 
-	double A = 0; // ti*xi
-	double B = 0; // ti
-	double C = 0; // xi*xi
-	double D = 0; // xi
+    double avg_x  = 0;
+    double avg_x2 = 0;
+    double avg_f  = 0;
+    double avg_xf = 0;
 
-	for(int i = 0; i < velocities.size(); i++)
+	double time_first = velocities.front()[3];
+
+	for(int i = 0;i < N; i++)
 	{
-		A += velocities[i][0]*velocities[i][3];
-		B += velocities[i][3];
-		C += velocities[i][0]*velocities[i][0];
-		D += velocities[i][0];
+        avg_x  += velocities[i][3] - time_first;
+        avg_x2 += std::pow(velocities[i][3] - time_first, 2);
+        avg_f  += velocities[i][0];
+        avg_xf += (velocities[i][3] - time_first) * velocities[i][0];
 	}
-	double vx = (N*A - B*D)/(N*C - D*D);
+	avg_x  /= velocities.size();
+    avg_x2 /= velocities.size();
+    avg_f  /= velocities.size();
+    avg_xf /= velocities.size();
+	double vx = (avg_xf - avg_x * avg_f) / (avg_x2 - std::pow(avg_x, 2));
 
-	A = 0; // ti*yi
-	B = 0; // ti
-	C = 0; // yi*yi
-	D = 0; // yi
-
-	for(int i = 0; i < velocities.size(); i++)
+	avg_x  = 0;
+    avg_x2 = 0;
+    avg_f  = 0;
+    avg_xf = 0;
+	for(int i = 0;i < N; i++)
 	{
-		A += velocities[i][1]*velocities[i][3];
-		B += velocities[i][3];
-		C += velocities[i][1]*velocities[i][1];
-		D += velocities[i][1];
-	}
-	double vy = (N*A - B*D)/(N*C - D*D);
+        avg_x  += velocities[i][3] - time_first;
+        avg_x2 += std::pow(velocities[i][3] - time_first, 2);
+        avg_f  += velocities[i][1];
+        avg_xf += (velocities[i][3] - time_first) * velocities[i][1];
+	}	
+	double vy = (avg_xf - avg_x * avg_f) / (avg_x2 - std::pow(avg_x, 2));
 
-	A = 0; // ti*zi
-	B = 0; // ti
-	C = 0; // zi*zi
-	D = 0; // zi
-
-	for(int i = 0; i < velocities.size(); i++)
+	double avg_x_  = 0;
+    double avg_x2_ = 0;
+    double avg_f_  = 0;
+    double avg_xf_ = 0;
+	for(int i = 0;i < N; i++)
 	{
-		A += velocities[i][2]*velocities[i][3];
-		B += velocities[i][3];
-		C += velocities[i][2]*velocities[i][2];
-		D += velocities[i][2];
-	}
-	double vz = (N*A - B*D)/(N*C - D*D);
+        avg_x_  += velocities[i][3] - time_first;
+        avg_x2_ += std::pow(velocities[i][3] - time_first, 2);
+        avg_f_  += velocities[i][2];
+        avg_xf_ += (velocities[i][3] - time_first) * velocities[i][2];
+    }
+	double vz = (avg_xf_ - N*(avg_x_/N) * (avg_f_/N)) / (avg_x2_ - N*std::pow(avg_x_/N,2));
 
 	return {vx,vy,vz};
+
 }
