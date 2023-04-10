@@ -58,7 +58,7 @@ void xyz2pyd(T* xyz, T* pyd)  // xyz[3], pyd[3]
      * 工具函数：将 xyz 转化为 pitch、yaw、distance
      */
     pyd[0] = ceres::atan2(xyz[1], ceres::sqrt(xyz[0]*xyz[0]+xyz[2]*xyz[2]));  // pitch
-    pyd[1] = ceres::atan2(xyz[2], xyz[0]);  // yaw
+    pyd[1] = ceres::atan2(xyz[0], xyz[2]);  // yaw
     pyd[2] = ceres::sqrt(xyz[0]*xyz[0]+xyz[1]*xyz[1]+xyz[2]*xyz[2]);  // distance
 }
 
@@ -91,9 +91,13 @@ class AdaptiveEKF
 
 public:
     explicit AdaptiveEKF(const VectorX &X0 = VectorX::Zero())
-        : Xe(X0), P(MatrixXX::Identity()), Q(MatrixXX::Identity()), R(MatrixYY::Identity()) {}
+        : Xe(X0), P(MatrixXX::Identity()),Q(MatrixXX::Identity()), R(MatrixYY::Identity()) 
+    {
+        std::cout << P << std::endl;
+    }
     
-    void init(const VectorX &X0 = VectorX::Zero()) {
+    void init(const VectorX &X0 = VectorX::Zero()) 
+    {
         Xe = X0;
     }
 
@@ -101,11 +105,13 @@ public:
     VectorX predict(Func &&func)
     {
         ceres::Jet<double, N_X> Xe_auto_jet[N_X];
+
         for (int i = 0; i < N_X; i++)
         {
             Xe_auto_jet[i].a = Xe[i];
             Xe_auto_jet[i].v[i] = 1;
         }
+
         ceres::Jet<double, N_X> Xp_auto_jet[N_X];
         func(Xe_auto_jet, Xp_auto_jet);
         for (int i = 0; i < N_X; i++)
@@ -113,7 +119,9 @@ public:
             Xp[i] = Xp_auto_jet[i].a;
             F.block(i, 0, 1, N_X) = Xp_auto_jet[i].v.transpose();
         }
+        std::cout << F * P * F.transpose() << std::endl;
         P = F * P * F.transpose() + Q;
+
         return Xp;
     }
 
@@ -134,8 +142,11 @@ public:
             H.block(i, 0, 1, N_X) = Yp_auto_jet[i].v.transpose();
         }
         K = P * H.transpose() * (H * P * H.transpose() + R).inverse();
+
         Xe = Xp + K * (Y - Yp);
         P = (MatrixXX::Identity() - K * H) * P;
+
+        std::cout << "update variables is x: " << Xe[0] << " y: " << Xe[2] << " z: " << Xe[4] << std::endl; 
         return Xe;
     }
 
@@ -188,7 +199,7 @@ private:
 /// @brief 状态记录变量
 private:
 	int loss_cnt_; // 装甲板丢失计数器，如果超过10次，记为丢失，需要初始化
-	bool init_;	// 初始化开关: 触发初始化条件，装甲板切换，第一次有装甲板进入预测器, 需要初始化为true
+	bool init_;	// 初始化开关: 触发初始化条件，装甲板切换，第一次有装甲板进入预测器，需要初始化为true
 
 public:
 	ArmorObject ArmorSelect(std::vector<ArmorObject> &object);
@@ -200,7 +211,7 @@ public:
 	Eigen::Vector3d last_velocity_; // 上一时刻的速度
 	Eigen::Vector3d last_location_; // 上一时刻目标在云台系下的坐标
 	Eigen::Vector3d CeresVelocity(std::deque<Eigen::Vector4d> velocities); // 最小二乘法拟合速度
-	int velocities_deque_size_ = 40;
+	int velocities_deque_size_ = 10;
 
     Eigen::Matrix3d transform_vector_;
     Eigen::Vector3d predict_location_;

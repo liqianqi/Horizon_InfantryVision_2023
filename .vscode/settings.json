@@ -91,6 +91,18 @@
 		"codecvt": "cpp",
 		"regex": "cpp",
 		"shared_mutex": "cpp",
-		"valarray": "cpp"
+		"valarray": "cpp",
+		"cassert": "cpp",
+		"ccomplex": "cpp",
+		"cerrno": "cpp",
+		"cfloat": "cpp",
+		"ciso646": "cpp",
+		"climits": "cpp",
+		"filesystem": "cpp",
+		"ios": "cpp",
+		"locale": "cpp",
+		"queue": "cpp",
+		"stack": "cpp",
+		"cstdbool": "cpp"
 	}
 }

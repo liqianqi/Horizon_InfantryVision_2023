@@ -1,8 +1,8 @@
 #include "../../include/thread/thread.h"
 // #define SAVE_VIDEO
 // #define RECORD_DATA
-#define DAHENG
-// #define MIDVISION
+// #define DAHENG
+#define MIDVISION
 // #define VIDEO
 mutex image_mutex_{}; // 数据上🔓
 
@@ -454,7 +454,7 @@ void Factory::consumer()
 		}
 		cv::putText(img, test, cv::Point(10, 420), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
 
-		sprintf(test, "x speed:%0.4f ", predic_pose_->last_velocity_[2]*100);
+		sprintf(test, "x speed:%0.4f ", predic_pose_->last_velocity_[0]*100);
 		cv::putText(img, test, cv::Point(img.cols / 2, 460), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
 
 		sprintf(test, "move is :%0.4f ", predic_pose_->move_);
