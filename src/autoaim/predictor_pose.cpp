@@ -106,6 +106,7 @@ Eigen::Vector3d rotationMatrixToEulerAngles(Eigen::Matrix3d &R)
 	}
 	return {z, y, x};
 }
+
 Eigen::Vector3d get_euler_angle(cv::Mat rotation_vector)
 {
 	double theta = cv::norm(rotation_vector, cv::NORM_L2);
@@ -294,8 +295,7 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PredictorPose::cam2ptz(Eigen::Vector
 
 	Eigen::Matrix3d pitch_rotation_matrix_R;
 	pitch_rotation_matrix_R
-		<< 1,
-		0, 0,
+		<< 1, 0, 0,
 		0, std::cos((imu_data_.pitch * CV_PI) / 180), -std::sin((imu_data_.pitch * CV_PI) / 180),
 		0, std::sin((imu_data_.pitch * CV_PI) / 180), std::cos((imu_data_.pitch * CV_PI) / 180);
 
@@ -381,7 +381,7 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 			float fly_t = bullteFlyTime(last_pose_.first);
 			GimbalPose gm = gm_ptz;
 			velocities_.clear();
-			return gm;
+			return last_eular_;
 		}
 		state_ = ARMOR_STATE_::TRACK;
 		last_state_ = state_;
@@ -402,6 +402,7 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 		last_location_ = current_pose;
 		predict_location_ = predict_pose;
 		GimbalPose gm = gm_ptz;
+		last_eular_ = gm;
 		return gm;
 	}
 
@@ -428,6 +429,8 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 		float fly_t = bullteFlyTime(cam_ptz_pose.first);
 		last_time_ = current_time_;
 		GimbalPose gm = gm_ptz;
+		velocities_.clear();
+		last_eular_ = gm;
 		return gm;
 	}
 
@@ -451,6 +454,12 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 	std::pair<Eigen::Vector3d, Eigen::Vector3d> cam_ptz_pose;
 	cam_ptz_pose = cam2ptz(world_cam_pose.first, pnp_solve_->rotate_world_cam_);
 
+	if(std::sqrt(std::pow(cam_ptz_pose.first[0]-last_location_[0],2)+std::pow(cam_ptz_pose.first[1]-last_location_[1],2)+std::pow(cam_ptz_pose.first[2]-last_location_[2],2)) >= 0.8)
+	{
+		init_ = true;
+		return last_eular_;
+	}
+
 	//========================EKF========================//
 
 	std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
@@ -459,7 +468,6 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 	Measure measure;
 
 	Eigen::Matrix<double, 6, 1> Xh;
-	std::cout << "last " << last_location_[0] << " " << last_location_[1] << " " << last_location_[2] << std::endl;
 	Xh << last_location_[0], last_velocity_[0], last_location_[1], last_velocity_[1], last_location_[2], last_velocity_[2];
 	ekf.init(Xh);
 	Eigen::Matrix<double, 6, 1> Xr;
@@ -535,6 +543,7 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 	GimbalPose gm = gm_ptz;
 	gm.yaw = gm.yaw + 2;
 	gm.pitch = gm.pitch - 0.5;
+	last_eular_ = gm;
 	return gm;
 }
 
@@ -601,7 +610,20 @@ float PredictorPose::bullteFlyTime(Eigen::Vector3d coord)
 
 ArmorObject PredictorPose::ArmorSelect(std::vector<ArmorObject> &objects)
 {
-	return objects[0];
+	float distances[objects.size()];
+	for(int i = 0; i < objects.size(); i++)
+	{
+		cv::Point2f center = objects[i].pts[0]+objects[i].pts[2];
+		distances[i] = std::sqrt(std::pow(center.x - 512,2)+std::pow(center.y - 640,2));
+	}
+	
+	int index = 0;
+	for (int i = 1; i < objects.size(); i++)
+	{
+		if (distances[i] > distances[index])
+			index = i;
+	}
+	return objects[index];
 }
 
 Eigen::Vector3d PredictorPose::CeresVelocity(std::deque<Eigen::Vector4d> velocities) // 最小二乘法拟合速度

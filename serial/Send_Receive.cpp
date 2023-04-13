@@ -2,7 +2,7 @@
 
 namespace Horizon
 {
-#define DATA_LENGTH 17 // 接受的数据位数
+#define DATA_LENGTH 16 // 接受的数据位数
 #define SERIAL_RECIVER_TRANSFER_TIME 0.001875f
 
 	int OpenPort(const char *Portname)
@@ -220,13 +220,13 @@ namespace Horizon
 			}
 		}
 
-		char rec_byte;
-		rec_byte = rec_bytes[FirstIndex + 1] + rec_bytes[FirstIndex + 2] + rec_bytes[FirstIndex + 3] + rec_bytes[FirstIndex + 4]+rec_bytes[FirstIndex + 5]+rec_bytes[FirstIndex + 6]+rec_bytes[FirstIndex + 7]+rec_bytes[FirstIndex + 8];
-		if(rec_bytes[FirstIndex+15] != rec_byte)
-		{
-			FirstIndex = -1;
-			LastIndex = -1;
-		}
+		// char rec_byte;
+		// rec_byte = rec_bytes[FirstIndex + 1] + rec_bytes[FirstIndex + 2] + rec_bytes[FirstIndex + 3] + rec_bytes[FirstIndex + 4]+rec_bytes[FirstIndex + 5]+rec_bytes[FirstIndex + 6]+rec_bytes[FirstIndex + 7]+rec_bytes[FirstIndex + 8];
+		// if(rec_bytes[FirstIndex+15] != rec_byte)
+		// {
+		// 	FirstIndex = -1;
+		// 	LastIndex = -1;
+		// }
 
 		if (FirstIndex != -1 && LastIndex != -1)
 		{

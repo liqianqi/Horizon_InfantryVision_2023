@@ -75,9 +75,9 @@ struct Measure
 };
 
 /**
- * @brief  自适应扩展卡尔曼滤波, 花山甲老师写的自适应扩展卡尔曼滤波实在优雅, 我没有信心写出更好的,baipiao(bushi)
+ * @brief  自适应扩展卡尔曼滤波, 花山甲老师写的自适应扩展卡尔曼滤波实在优雅, 我没有信心写出更好的，baipiao(bushi)
  *
- * @author 上交:唐欣阳(花山甲老师)
+ * @author 上交:唐欣阳(花山甲老师yyds)
  */
 template <int N_X, int N_Y>
 class AdaptiveEKF
@@ -225,5 +225,6 @@ public:
 public:
     AdaptiveEKF<6, 3> ekf;  // 创建ekf
     float move_;
+    GimbalPose last_eular_;
 
 };

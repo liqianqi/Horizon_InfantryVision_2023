@@ -1,8 +1,8 @@
 #include "../../include/thread/thread.h"
 // #define SAVE_VIDEO
 // #define RECORD_DATA
-// #define DAHENG
-#define MIDVISION
+#define DAHENG
+//#define MIDVISION
 // #define VIDEO
 mutex image_mutex_{}; // 数据上🔓
 
@@ -404,11 +404,16 @@ void Factory::consumer()
 			gim = predic_pose_->run(imu_data, objects, src_time);
 			coord = predic_pose_->last_pose_.first;
 			rotation = predic_pose_->last_pose_.second;
+			visiondata.is_have_armor = true;
+		}else
+		{
+			visiondata.is_have_armor = false;
 		}
 
 		visiondata.yaw_data_.f = gim.yaw;
 		visiondata.pitch_data_.f = gim.pitch;
 		visiondata.time.f = src_time;
+
 
 		data_controler_.sentData(fd, visiondata);
 
