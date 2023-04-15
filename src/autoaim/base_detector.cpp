@@ -1,6 +1,7 @@
 #include "../../include/autoaim/base_detector.h"
 
-Eigen::Matrix<float, 3, 3> transform_matrix;
+// Eigen::Matrix<float, 3, 3> transform_matrix;
+
 float ratio_ = 0;
 int x_offset = 0;
 int y_offset = 0;
@@ -111,7 +112,7 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
 	float ratioh = (float)srcimg.rows / NetInputHeight;
 	float ratiow = (float)srcimg.cols / NetInputWidth;
 
-	int n = 0, q = 0, i = 0, j = 0, nout = 51, row_ind = 0, k = 0; /// xmin,ymin,xamx,ymax,box_score,x1,y1, ... ,x5,y5,face_score
+	int n = 0, q = 0, i = 0, j = 0, nout = 23, row_ind = 0, k = 0; /// xmin,ymin,xamx,ymax,box_score,x1,y1, ... ,x5,y5,face_score
 	for (n = 0; n < 3; n++)										   /// 特征图尺度
 	{
 		int num_grid_x = (int)(NetInputWidth / netStride[n]);
@@ -125,11 +126,11 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
 					float *pdata = Idata + row_ind * nout;
 					row_ind++;
 					float box_score = (pdata[4]);
-					if (box_score > 0.4)
+					if (box_score > 0.70)
 					{
-						int id = argmax(pdata + 15, 36);
+						int id = argmax(pdata + 15, 8);
 						float face_score = pdata[15 + id];
-						if (face_score < 0.4)
+						if (face_score < 0.65)
 							continue;
 
 						float cx = pdata[0] * ratiow; /// cx

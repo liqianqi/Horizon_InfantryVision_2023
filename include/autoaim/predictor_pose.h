@@ -24,6 +24,8 @@ public:
 	cv::Mat distCoeffs_;					// 畸变系数
 public:
 	cv::Mat rotate_world_cam_;				// 从世界系到相机系的旋转矩阵
+    bool is_large_;
+
 };
 
 enum class ARMOR_STATE_
@@ -121,6 +123,7 @@ public:
         }
         std::cout << F * P * F.transpose() << std::endl;
         P = F * P * F.transpose() + Q;
+        std::cout << "predict variables is x: " << Xp[0] << " y: " << Xp[2] << " z: " << Xp[4] << std::endl; 
 
         return Xp;
     }
@@ -211,7 +214,7 @@ public:
 	Eigen::Vector3d last_velocity_; // 上一时刻的速度
 	Eigen::Vector3d last_location_; // 上一时刻目标在云台系下的坐标
 	Eigen::Vector3d CeresVelocity(std::deque<Eigen::Vector4d> velocities); // 最小二乘法拟合速度
-	int velocities_deque_size_ = 10;
+	int velocities_deque_size_ = 15;
 
     Eigen::Matrix3d transform_vector_;
     Eigen::Vector3d predict_location_;
@@ -226,5 +229,4 @@ public:
     AdaptiveEKF<6, 3> ekf;  // 创建ekf
     float move_;
     GimbalPose last_eular_;
-
 };

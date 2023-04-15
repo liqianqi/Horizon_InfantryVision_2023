@@ -17,6 +17,13 @@ using namespace std;
 static constexpr int INPUT_W = 416;    // Width of input
 static constexpr int INPUT_H = 416;    // Height of input
 
+enum class COLOR
+{
+    RED,
+    BLUE,
+    GRAY
+};
+
 struct ArmorObject
 {
     cv::Rect rect;

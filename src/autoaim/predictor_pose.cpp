@@ -165,7 +165,7 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver::poseCalculation(ArmorObje
 		point_in_pixe.emplace_back(pt);
 	}
 	// point_in_pixe.push_back(obj.pts[0]);
-	// point_in_pixe.push_back(obj.pts[1]);
+	// point_in_pixe.push_back(obj.pts[1]);2
 	// point_in_pixe.push_back(obj.pts[2]);
 	// point_in_pixe.push_back(obj.pts[3]);
 
@@ -174,34 +174,36 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver::poseCalculation(ArmorObje
 	std::cout << "[x,y]  " << point_in_pixe[2].x << " " << point_in_pixe[2].y << std::endl;
 	std::cout << "[x,y]  " << point_in_pixe[3].x << " " << point_in_pixe[3].y << std::endl;
 
-	// if (width_height_ratio > 0.35 && width_height_ratio < 0.55)
-	// {
-	// 	std::cout << "[notice] the small armor" << std::endl;
-	// 	float fHalfX = kRealSmallArmorWidth * 0.5f;	 // 将装甲板的宽的一半作为原点的x
-	// 	float fHalfY = kRealSmallArmorHeight * 0.5f; // 将装甲板的宽的一半作为原点的y
-	// 	point_in_world.emplace_back(cv::Point3f(-fHalfX, -fHalfY, 0));
-	// 	point_in_world.emplace_back(cv::Point3f(-fHalfX, fHalfY, 0));
-	// 	point_in_world.emplace_back(cv::Point3f(fHalfX, fHalfY, 0));
-	// 	point_in_world.emplace_back(cv::Point3f(fHalfX, -fHalfY, 0));
-	// }
-	// else if (width_height_ratio > 0.20 && width_height_ratio < 0.30)
-	// {
-	// 	std::cout << "[notice] the large armor" << std::endl;
-	// 	float fHalfX = kRealLargeArmorWidth * 0.5f;	 // 将装甲板的宽的一半作为原点的x
-	// 	float fHalfY = kRealLargeArmorHeight * 0.5f; // 将装甲板的宽的一半作为原点的y
-	// 	point_in_world.emplace_back(cv::Point3f(-fHalfX, -fHalfY, 0));
-	// 	point_in_world.emplace_back(cv::Point3f(-fHalfX, fHalfY, 0));
-	// 	point_in_world.emplace_back(cv::Point3f(fHalfX, fHalfY, 0));
-	// 	point_in_world.emplace_back(cv::Point3f(fHalfX, -fHalfY, 0));
-	// }
+	if (width_height_ratio < 2.7)
+	{
+		std::cout << "[notice] the small armor" << std::endl;
+		is_large_ = false;
+		float fHalfX = kRealSmallArmorWidth * 0.5f;	 // 将装甲板的宽的一半作为原点的x
+		float fHalfY = kRealSmallArmorHeight * 0.5f; // 将装甲板的宽的一半作为原点的y
+		point_in_world.emplace_back(cv::Point3f(-fHalfX, -fHalfY, 0));
+		point_in_world.emplace_back(cv::Point3f(-fHalfX, fHalfY, 0));
+		point_in_world.emplace_back(cv::Point3f(fHalfX, fHalfY, 0));
+		point_in_world.emplace_back(cv::Point3f(fHalfX, -fHalfY, 0));
+	}
+	else
+	{
+		std::cout << "[notice] the large armor" << std::endl;
+		is_large_ = true;
+		float fHalfX = kRealLargeArmorWidth * 0.5f;	 // 将装甲板的宽的一半作为原点的x
+		float fHalfY = kRealLargeArmorHeight * 0.5f; // 将装甲板的宽的一半作为原点的y
+		point_in_world.emplace_back(cv::Point3f(-fHalfX, -fHalfY, 0));
+		point_in_world.emplace_back(cv::Point3f(-fHalfX, fHalfY, 0));
+		point_in_world.emplace_back(cv::Point3f(fHalfX, fHalfY, 0));
+		point_in_world.emplace_back(cv::Point3f(fHalfX, -fHalfY, 0));
+	}
 
-	std::cout << "[notice] the small armor" << std::endl;
-	float fHalfX = kRealSmallArmorWidth * 0.5f;	 // 将装甲板的宽的一半作为原点的x
-	float fHalfY = kRealSmallArmorHeight * 0.5f; // 将装甲板的宽的一半作为原点的y
-	point_in_world.emplace_back(cv::Point3f(-fHalfX, fHalfY, 0));
-	point_in_world.emplace_back(cv::Point3f(-fHalfX, -fHalfY, 0));
-	point_in_world.emplace_back(cv::Point3f(fHalfX, -fHalfY, 0));
-	point_in_world.emplace_back(cv::Point3f(fHalfX, fHalfY, 0));
+	// std::cout << "[notice] the small armor" << std::endl;
+	// float fHalfX = kRealSmallArmorWidth * 0.5f;	 // 将装甲板的宽的一半作为原点的x
+	// float fHalfY = kRealSmallArmorHeight * 0.5f; // 将装甲板的宽的一半作为原点的y
+	// point_in_world.emplace_back(cv::Point3f(-fHalfX, fHalfY, 0));
+	// point_in_world.emplace_back(cv::Point3f(-fHalfX, -fHalfY, 0));
+	// point_in_world.emplace_back(cv::Point3f(fHalfX, -fHalfY, 0));
+	// point_in_world.emplace_back(cv::Point3f(fHalfX, fHalfY, 0));
 
 	if (point_in_world.size() == 4 && point_in_pixe.size() == 4)
 	{
@@ -263,6 +265,7 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver::poseCalculation(ArmorObje
 
 	// 为什么要传相机系的旋转角，因为当无法上车调试时，可以将就着调
 	std::cout << "camera pose finished!!!" << std::endl;
+	std::cout << "=======================" << std::endl;
 	return pose;
 }
 
@@ -378,9 +381,8 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 			// 返回最后一帧的云台角，避免剧烈晃动
 			// return
 			init_ = true;
-			float fly_t = bullteFlyTime(last_pose_.first);
-			GimbalPose gm = gm_ptz;
 			velocities_.clear();
+			ekf.P = Eigen::Matrix<double,6,6>::Identity();
 			return last_eular_;
 		}
 		state_ = ARMOR_STATE_::TRACK;
@@ -422,6 +424,9 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 		std::pair<Eigen::Vector3d, Eigen::Vector3d> cam_ptz_pose;
 		cam_ptz_pose = cam2ptz(world_cam_pose.first, pnp_solve_->rotate_world_cam_);
 
+		std::cout << "[world x]: " << cam_ptz_pose.first[0] << "  "
+				<< "[world y]: " << cam_ptz_pose.first[1] << "  [world z]: " << cam_ptz_pose.first[2] << std::endl;
+
 		last_pose_ = cam_ptz_pose; // 记录这一时刻，为下一时刻预测做准备
 		init_ = false;
 		last_location_ = cam_ptz_pose.first;
@@ -434,9 +439,10 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 		return gm;
 	}
 
-	/**
+	/**1e-8
 	 * 陀螺模块相对复杂，要测试的东西多，开学再写
 	 */
+	std::cout << "continue track armor!!!" << std::endl;
 
 	// 选择一个装甲板
 	// 当卡方检验过大时仍然要打开初始化开关
@@ -448,11 +454,11 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 	std::pair<Eigen::Vector3d, Eigen::Vector3d> world_cam_pose;
 	world_cam_pose = pnp_solve_->poseCalculation(obj);
 
-	std::cout << "[camera x]: " << world_cam_pose.first[0] << "  "
-			  << "[camera y]: " << world_cam_pose.first[1] << "  [camera z]: " << world_cam_pose.first[2] << std::endl;
-
 	std::pair<Eigen::Vector3d, Eigen::Vector3d> cam_ptz_pose;
 	cam_ptz_pose = cam2ptz(world_cam_pose.first, pnp_solve_->rotate_world_cam_);
+
+	std::cout << "[world x]: " << cam_ptz_pose.first[0] << "  "
+			  << "[world y]: " << cam_ptz_pose.first[1] << "  [world z]: " << cam_ptz_pose.first[2] << std::endl;
 
 	if(std::sqrt(std::pow(cam_ptz_pose.first[0]-last_location_[0],2)+std::pow(cam_ptz_pose.first[1]-last_location_[1],2)+std::pow(cam_ptz_pose.first[2]-last_location_[2],2)) >= 0.8)
 	{
@@ -467,6 +473,11 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 	Predict predictfunc;
 	Measure measure;
 
+	if(isnan(ekf.P.sum()))
+	{
+		ekf.P = Eigen::Matrix<double,6,6>::Identity();
+	}
+
 	Eigen::Matrix<double, 6, 1> Xh;
 	Xh << last_location_[0], last_velocity_[0], last_location_[1], last_velocity_[1], last_location_[2], last_velocity_[2];
 	ekf.init(Xh);
@@ -478,9 +489,15 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 	ekf.predict(predictfunc);								  // 更新预测器，此时预测器里的是预测值
 	Eigen::Matrix<double, 6, 1> Xe = ekf.update(measure, Yr); // 更新滤波器，输入真实的球面坐标 Yr
 
-	cam_ptz_pose.first[0] = Xe[0];
-	cam_ptz_pose.first[1] = Xe[2];
-	cam_ptz_pose.first[2] = Xe[4];
+	if(!isnan(Xe[0]) && !isnan(Xe[2]) && !isnan(Xe[4]))
+	{
+		cam_ptz_pose.first[0] = Xe[0];
+		cam_ptz_pose.first[1] = Xe[2];
+		cam_ptz_pose.first[2] = Xe[4];
+	}else
+	{
+		ekf.P = Eigen::Matrix<double,6,6>::Identity();
+	}
 
 	std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
 	std::chrono::duration<double> time_run = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t0);
@@ -541,8 +558,8 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 	predict_location_ = predict_location;
 
 	GimbalPose gm = gm_ptz;
-	gm.yaw = gm.yaw + 2;
-	gm.pitch = gm.pitch - 0.5;
+	gm.yaw = gm.yaw;
+	gm.pitch = gm.pitch;
 	last_eular_ = gm;
 	return gm;
 }
@@ -613,14 +630,14 @@ ArmorObject PredictorPose::ArmorSelect(std::vector<ArmorObject> &objects)
 	float distances[objects.size()];
 	for(int i = 0; i < objects.size(); i++)
 	{
-		cv::Point2f center = objects[i].pts[0]+objects[i].pts[2];
-		distances[i] = std::sqrt(std::pow(center.x - 512,2)+std::pow(center.y - 640,2));
+		cv::Point2f center = (objects[i].pts[0]+objects[i].pts[2])/2;
+		distances[i] = (center.x - 512) + (center.y - 640);
 	}
 	
 	int index = 0;
 	for (int i = 1; i < objects.size(); i++)
 	{
-		if (distances[i] > distances[index])
+		if (distances[i] < distances[index])
 			index = i;
 	}
 	return objects[index];

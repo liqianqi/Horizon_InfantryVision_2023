@@ -40,7 +40,7 @@ namespace GxCamera
 	// int GX_gain = 4;
 	int GX_exp_time = 10000;
 
-	int GX_gain = 0;
+	int GX_gain = 5;
 	DaHengCamera *camera_ptr_ = nullptr;
 	int GX_blance_r = 50;
 	int GX_blance_g = 32;
@@ -64,7 +64,7 @@ namespace GxCamera
 
 namespace MidCamera
 {
-	int MV_exp_value = 7500;
+	int MV_exp_value = 9000;
 	MVCamera *camera_ptr_ = nullptr;
 	void MVSetExpTime(int, void *)
 	{
@@ -464,6 +464,26 @@ void Factory::consumer()
 
 		sprintf(test, "move is :%0.4f ", predic_pose_->move_);
 		cv::putText(img, test, cv::Point(img.cols / 2, 500), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
+
+		if (predic_pose_->pnp_solve_->is_large_)
+		{
+			sprintf(test, " armor size:%s ", "large");
+		}
+		else
+		{
+			sprintf(test, " armor size:%s ", "small");
+		}
+		cv::putText(img, test, cv::Point(img.cols / 2, 540), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
+
+		if (visiondata.is_have_armor)
+		{
+			sprintf(test, " is have:%s ", "true");
+		}
+		else
+		{
+			sprintf(test, " is have:%s ", "false");
+		}
+		cv::putText(img, test, cv::Point(img.cols / 2, 580), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 1, 8);
 
 		Eigen::Vector3d pc = pw_to_pc(predic_pose_->predict_location_, predic_pose_->transform_vector_);
 		Eigen::Matrix3d F;

@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <opencv2/core/eigen.hpp>
 
+#define X_BIAS 
 #define Y_BIAS 0.08
 #define Z_BIAS 0.10
 
