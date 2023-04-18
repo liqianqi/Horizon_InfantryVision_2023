@@ -126,7 +126,7 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
 					float *pdata = Idata + row_ind * nout;
 					row_ind++;
 					float box_score = (pdata[4]);
-					if (box_score > 0.70)
+					if (box_score > 0.50)
 					{
 						int id = argmax(pdata + 15, 8);
 						float face_score = pdata[15 + id];

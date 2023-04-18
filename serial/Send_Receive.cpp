@@ -18,7 +18,7 @@ namespace Horizon
 		}
 		else
 		{
-			fcntl(fd, F_SETFL, 0); // 读取串口的信息
+			fcntl(fd, F_SETFL, FNDELAY); // 读取串口的信息
 		}
 		return fd;
 	}
@@ -27,8 +27,8 @@ namespace Horizon
 	{
 		struct termios port_set;
 		// 波特率
-		cfsetispeed(&port_set, B115200);
-		cfsetospeed(&port_set, B115200);
+		cfsetispeed(&port_set, B460800);
+		cfsetospeed(&port_set, B460800);
 		// No parity
 		// port_set.c_cflag &= ~PARENB;         //无奇偶校验
 		// port_set.c_cflag &= ~CSTOPB;         //停止位:1bit
@@ -69,6 +69,8 @@ namespace Horizon
 
 		// tcsetattr(fd, TCSANOW, &port_set);
 		
+		tcflush(fd,TCIFLUSH);
+
 		return (fd);
 	}
 
@@ -241,8 +243,44 @@ namespace Horizon
 			get_data.yaw_data_.c[2] = rec_bytes[FirstIndex + 7];
 			get_data.yaw_data_.c[3] = rec_bytes[FirstIndex + 8];
 
-			// std::cout << "[get yaw is " << rec_bytes[FirstIndex + 5] << " ]" << std::endl;
+			printf("PITCH is %d,%d,%d,%d \n",rec_bytes[FirstIndex + 1],rec_bytes[FirstIndex + 2],rec_bytes[FirstIndex + 3],rec_bytes[FirstIndex + 4]);
+			printf("YAW is %d,%d,%d,%d \n",rec_bytes[FirstIndex + 5],rec_bytes[FirstIndex + 6],rec_bytes[FirstIndex + 7],rec_bytes[FirstIndex + 8]);
+			
+			if(get_data.pitch_data_.f > 10000)
+			{
+				std::cout << "pitch error" << std::endl;
+				int bit = getBit(get_data.pitch_data_.c[2], 6);
+				if(bit == 1)
+				{
+					CLEAR_BIT(get_data.pitch_data_.c[2],6);
+				}
 
+				int bit1 = getBit(get_data.pitch_data_.c[3], 6);
+				if(bit1 == 1)
+				{
+					CLEAR_BIT(get_data.pitch_data_.c[3],6);
+				}
+			}
+
+			if(get_data.yaw_data_.f > 10000)
+			{
+				std::cout << "yaw error" << std::endl;
+				int bit = getBit(get_data.yaw_data_.c[2], 6);
+				if(bit == 1)
+				{
+					CLEAR_BIT(get_data.yaw_data_.c[2],6);
+				}
+
+				int bit1 = getBit(get_data.yaw_data_.c[3], 6);
+				if(bit1 == 1)
+				{
+					CLEAR_BIT(get_data.yaw_data_.c[3],6);
+				}
+			}
+
+			printf("PITCH1 is %d,%d,%d,%d \n",get_data.pitch_data_.c[0],get_data.pitch_data_.c[1],get_data.pitch_data_.c[2],get_data.pitch_data_.c[3]);
+			printf("YAW1 is %d,%d,%d,%d \n",get_data.yaw_data_.c[0],get_data.yaw_data_.c[1],get_data.yaw_data_.c[2],get_data.yaw_data_.c[3]);
+			
 			//printf("first %d, second %d, third %d, forth %d\n", rec_bytes[1], rec_bytes[2], rec_bytes[3], rec_bytes[4]);
 
 			get_data.OnePointFive = rec_bytes[FirstIndex + 9];
