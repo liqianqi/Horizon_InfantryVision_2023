@@ -7,7 +7,8 @@
                 "/usr/include/python3.8",
                 "/opt/intel/openvino_2022/runtime/include/",
                 "/usr/include/eigen3",
-                "../.local/lib/python3.8/site-packages/numpy/core/include"
+                "../.local/lib/python3.8/site-packages/numpy/core/include",
+                "/usr/include/libserial/"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

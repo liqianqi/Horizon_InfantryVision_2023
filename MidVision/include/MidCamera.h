@@ -72,7 +72,7 @@ public:
 	{
         if(CameraGetImageBuffer(hCamera,&sFrameInfo,&pbyBuffer,1000) == CAMERA_STATUS_SUCCESS)
 		{
-			CameraImageProcess(hCamera, pbyBuffer, g_pRgbBuffer,&sFrameInfo);
+			CameraImageProcess(hCamera, pbyBuffer, g_pRgbBuffer, &sFrameInfo);
 
 			cv::Mat matImage(
 					cv::Size(sFrameInfo.iWidth,sFrameInfo.iHeight), 
@@ -80,7 +80,7 @@ public:
 					g_pRgbBuffer
 					);
 			
-			src = matImage;
+			src = matImage.clone();
             // 在成功调用CameraGetImageBuffer后，必须调用CameraReleaseImageBuffer来释放获得的buffer。
 			// 否则再次调用CameraGetImageBuffer时，程序将被挂起一直阻塞，直到其他线程中调用CameraReleaseImageBuffer来释放了buffer
 			CameraReleaseImageBuffer(hCamera,pbyBuffer);
@@ -97,7 +97,8 @@ public:
 	{
 		value_ = value;
 		iStatus = CameraSetExposureTime(hCamera,value_);
-		CameraSetGain(hCamera,150,150,165);
+		// 160,160,140
+		CameraSetGain(hCamera,150,140,150);
 	
 		if(iStatus == CAMERA_STATUS_SUCCESS)
 		{

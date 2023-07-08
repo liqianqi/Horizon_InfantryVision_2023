@@ -104,5 +104,6 @@
 		"queue": "cpp",
 		"stack": "cpp",
 		"cstdbool": "cpp"
-	}
+	},
+	"cmake.configureOnOpen": false
 }

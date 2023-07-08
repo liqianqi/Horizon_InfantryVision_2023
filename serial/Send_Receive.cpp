@@ -25,36 +25,38 @@ namespace Horizon
 
 	int configureSerial(int fd)
 	{
-		struct termios port_set;
-		// 波特率
-		cfsetispeed(&port_set, B460800);
-		cfsetospeed(&port_set, B460800);
-		// No parity
-		// port_set.c_cflag &= ~PARENB;         //无奇偶校验
-		// port_set.c_cflag &= ~CSTOPB;         //停止位:1bit
-		// port_set.c_cflag &= ~CSIZE;          //清除数据位掩码
-		// port_set.c_cflag |=  CS8;
-		port_set.c_iflag &= ~ISTRIP;
-		// port_set.c_iflag &= ~CRTSCTS;
-		// port_set.c_iflag |= CLOCAL|CREAD;
+		struct termios port_settings;		  // structure to store the port settings in
+		cfsetispeed(&port_settings, B115200); // set baud rates
+		cfsetospeed(&port_settings, B115200);
+		/* Enable the receiver and set local mode...*/
 
-		port_set.c_cflag &= ~PARENB; // set no parity, stop bits, data bits
-		port_set.c_cflag &= ~PARODD;
-		port_set.c_cflag &= ~CSTOPB;
-		port_set.c_cflag &= ~CSIZE;
-		port_set.c_cflag |= CS8;
+		port_settings.c_cflag |= (CLOCAL | CREAD);
+		/* Set c_cflag options.*/
+		port_settings.c_cflag &= ~PARENB; // set no parity, stop bits, data bits
+		port_settings.c_cflag &= ~PARODD;
+		port_settings.c_cflag &= ~CSTOPB;
+		port_settings.c_cflag &= ~CSIZE;
+		port_settings.c_cflag |= CS8;
 		// port_settings.c_cflag &= ~CRTSCTS;
-		port_set.c_iflag &= ~(IXON | IXOFF | IXANY);
-		port_set.c_iflag &= ~(INLCR | IGNCR | ICRNL);
-		port_set.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
-		port_set.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP);
-		/* Set c_oflag output options */
-		port_set.c_oflag &= ~OPOST;
-		/* Set the timeout options */
-		port_set.c_cc[VTIME] = 0;
-		port_set.c_cc[VMIN] = 0;
 
-		tcsetattr(fd, TCSANOW, &port_set);
+		//port_settings.c_iflag &= ~(IXON | IXOFF | IXANY);
+		/* open soft flow control */
+		port_settings.c_iflag |= (IXON | IXOFF | IXANY);
+
+		port_settings.c_iflag &= ~(INLCR | IGNCR | ICRNL);
+		port_settings.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+		port_settings.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP);
+		/* Set c_oflag output options */
+		port_settings.c_oflag &= ~OPOST;
+		/* Set the timeout options */
+		// port_settings.c_cc[VTIME] = 0;
+		// port_settings.c_cc[VMIN] = 0;
+
+		/* flow start with 0x11, end with 0x13 */
+		port_settings.c_cc[VSTART] = 0x11;
+		port_settings.c_cc[VSTOP] = 0x13;
+
+		tcsetattr(fd, TCSANOW, &port_settings); // apply the settings to the port
 
 		// struct termios port_set;
 
@@ -68,8 +70,8 @@ namespace Horizon
 		// port_set.c_cflag |= CS8;
 
 		// tcsetattr(fd, TCSANOW, &port_set);
-		
-		tcflush(fd,TCIFLUSH);
+
+		tcflush(fd, TCIFLUSH);
 
 		return (fd);
 	}
@@ -118,6 +120,9 @@ namespace Horizon
 		send_bytes[6] = data.yaw_data_.c[1];
 		send_bytes[7] = data.yaw_data_.c[2];
 		send_bytes[8] = data.yaw_data_.c[3];
+
+		std::cout << "send pitch" << data.pitch_data_.f << std::endl;
+		std::cout << "send yaw" << data.yaw_data_.f << std::endl;
 
 		state_ = 0;
 
@@ -188,7 +193,7 @@ namespace Horizon
 		// uint8_t cde;
 		// unsigned char rec_bytes[1024] = {0};
 		// 这是干什么的
-
+		
 		ioctl(fd, FIONREAD, &bytes); // 1199
 		// cout << "bytes      " << bytes << endl;
 		if (bytes < DATA_LENGTH)
@@ -222,14 +227,6 @@ namespace Horizon
 			}
 		}
 
-		// char rec_byte;
-		// rec_byte = rec_bytes[FirstIndex + 1] + rec_bytes[FirstIndex + 2] + rec_bytes[FirstIndex + 3] + rec_bytes[FirstIndex + 4]+rec_bytes[FirstIndex + 5]+rec_bytes[FirstIndex + 6]+rec_bytes[FirstIndex + 7]+rec_bytes[FirstIndex + 8];
-		// if(rec_bytes[FirstIndex+15] != rec_byte)
-		// {
-		// 	FirstIndex = -1;
-		// 	LastIndex = -1;
-		// }
-
 		if (FirstIndex != -1 && LastIndex != -1)
 		{
 			// get_data.IsHave = true;
@@ -243,12 +240,13 @@ namespace Horizon
 			get_data.yaw_data_.c[2] = rec_bytes[FirstIndex + 7];
 			get_data.yaw_data_.c[3] = rec_bytes[FirstIndex + 8];
 
-			printf("PITCH is %d,%d,%d,%d \n",rec_bytes[FirstIndex + 1],rec_bytes[FirstIndex + 2],rec_bytes[FirstIndex + 3],rec_bytes[FirstIndex + 4]);
-			printf("YAW is %d,%d,%d,%d \n",rec_bytes[FirstIndex + 5],rec_bytes[FirstIndex + 6],rec_bytes[FirstIndex + 7],rec_bytes[FirstIndex + 8]);
-			
-			if(get_data.pitch_data_.f > 10000)
+			printf("PITCH is %d,%d,%d,%d \n", rec_bytes[FirstIndex + 1], rec_bytes[FirstIndex + 2], rec_bytes[FirstIndex + 3], rec_bytes[FirstIndex + 4]);
+			printf("YAW is %d,%d,%d,%d \n", rec_bytes[FirstIndex + 5], rec_bytes[FirstIndex + 6], rec_bytes[FirstIndex + 7], rec_bytes[FirstIndex + 8]);
+
+			if((get_data.pitch_data_.f) > 10000)
 			{
 				std::cout << "pitch error" << std::endl;
+				exit(0);
 				int bit = getBit(get_data.pitch_data_.c[2], 6);
 				if(bit == 1)
 				{
@@ -262,8 +260,9 @@ namespace Horizon
 				}
 			}
 
-			if(get_data.yaw_data_.f > 10000)
+			if((get_data.yaw_data_.f) > 10000)
 			{
+				exit(0);
 				std::cout << "yaw error" << std::endl;
 				int bit = getBit(get_data.yaw_data_.c[2], 6);
 				if(bit == 1)
@@ -278,37 +277,59 @@ namespace Horizon
 				}
 			}
 
-			printf("PITCH1 is %d,%d,%d,%d \n",get_data.pitch_data_.c[0],get_data.pitch_data_.c[1],get_data.pitch_data_.c[2],get_data.pitch_data_.c[3]);
-			printf("YAW1 is %d,%d,%d,%d \n",get_data.yaw_data_.c[0],get_data.yaw_data_.c[1],get_data.yaw_data_.c[2],get_data.yaw_data_.c[3]);
-			
-			//printf("first %d, second %d, third %d, forth %d\n", rec_bytes[1], rec_bytes[2], rec_bytes[3], rec_bytes[4]);
+			printf("PITCH1 is %d,%d,%d,%d \n", get_data.pitch_data_.c[0], get_data.pitch_data_.c[1], get_data.pitch_data_.c[2], get_data.pitch_data_.c[3]);
+			printf("YAW1 is %d,%d,%d,%d \n", get_data.yaw_data_.c[0], get_data.yaw_data_.c[1], get_data.yaw_data_.c[2], get_data.yaw_data_.c[3]);
+
+			// printf("first %d, second %d, third %d, forth %d\n", rec_bytes[1], rec_bytes[2], rec_bytes[3], rec_bytes[4]);
 
 			get_data.OnePointFive = rec_bytes[FirstIndex + 9];
 
-			if (getBit(get_data.OnePointFive, 1) == 0 && getBit(get_data.OnePointFive, 2) == 0 && getBit(get_data.OnePointFive, 3) == 1)
+			if (getBit(get_data.OnePointFive, 1) == 0)
 			{
 				get_data.flag = 0;
 			}
-			else if (getBit(get_data.OnePointFive, 1) == 1 && getBit(get_data.OnePointFive, 2) == 1 && getBit(get_data.OnePointFive, 3) == 0)
+			else if (getBit(get_data.OnePointFive, 1) == 1)
 			{
 				get_data.flag = 1;
 			}
-			else if (getBit(get_data.OnePointFive, 1) == 1 && getBit(get_data.OnePointFive, 2) == 0 && getBit(get_data.OnePointFive, 3) == 0)
-			{
-				get_data.flag = 2;
-			}
-			else if (getBit(get_data.OnePointFive, 1) == 0 && getBit(get_data.OnePointFive, 2) == 1 && getBit(get_data.OnePointFive, 3) == 0)
-			{
-				get_data.flag = 3;
-			}
+
 
 			if (getBit(get_data.OnePointFive, 4) == 0)
 			{
+				std::cout << "识别红色" << std::endl;
 				get_data.color_ = false;
 			}
 			else
 			{
+				std::cout << "识别蓝色" << std::endl;
 				get_data.color_ = true;
+			}
+
+			if (getBit(get_data.OnePointFive, 5) == 0)
+			{
+				get_data.pitch_data_.f = get_data.pitch_data_.f;
+			}
+			else
+			{
+				get_data.pitch_data_.f = -get_data.pitch_data_.f;
+			}
+
+			if (getBit(get_data.OnePointFive, 6) == 0 && getBit(get_data.OnePointFive, 8) == 0)
+			{
+				get_data.is_aim = false;
+			}
+			else
+			{
+				get_data.is_aim = true;
+			}
+
+			if (getBit(get_data.OnePointFive, 7) == 0)
+			{
+				get_data.yaw_data_.f = get_data.yaw_data_.f;
+			}
+			else
+			{
+				get_data.yaw_data_.f = -get_data.yaw_data_.f;
 			}
 
 			get_data.time.c[0] = rec_bytes[FirstIndex + 10];
@@ -322,6 +343,7 @@ namespace Horizon
 			// get_data.IsHave = true;
 			cout << "接收完成" << get_data.time.f << endl;
 			get_data.dubug_print = true;
+			free(rec_bytes);
 		}
 		else
 		{

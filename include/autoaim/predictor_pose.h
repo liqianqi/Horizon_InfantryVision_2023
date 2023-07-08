@@ -4,6 +4,26 @@
 #include "base_detector.h"
 #include <ceres/jet.h>
 #include <ceres/ceres.h>
+#include "kf.h"
+
+#define RESET "\033[0m"
+#define BLACK "\033[30m"              /* Black */
+#define RED1 "\033[31m"                /* Red */
+#define GREEN "\033[32m"              /* Green */
+#define YELLOW "\033[33m"             /* Yellow */
+#define BLUE1 "\033[34m"               /* Blue */
+#define MAGENTA "\033[35m"            /* Magenta */
+#define CYAN "\033[36m"               /* Cyan */
+#define WHITE "\033[37m"              /* White */
+#define BOLDBLACK "\033[1m\033[30m"   /* Bold Black */
+#define BOLDRED "\033[1m\033[31m"     /* Bold Red */
+#define BOLDGREEN "\033[1m\033[32m"   /* Bold Green */
+#define BOLDYELLOW "\033[1m\033[33m"  /* Bold Yellow */
+#define BOLDBLUE "\033[1m\033[34m"    /* Bold Blue */
+#define BOLDMAGENTA "\033[1m\033[35m" /* Bold Magenta */
+#define BOLDCYAN "\033[1m\033[36m"    /* Bold Cyan */
+#define BOLDWHITE "\033[1m\033[37m"   /* Bold White */
+
 //小装甲实际大小
 static const float kRealSmallArmorWidth = 13.5;
 static const float kRealSmallArmorHeight = 5.7;
@@ -11,7 +31,7 @@ static const float kRealSmallArmorHeight = 5.7;
 //大装甲实际大小
 static const float kRealLargeArmorWidth = 22.5;
 static const float kRealLargeArmorHeight = 5.7;
-
+using namespace Eigen;
 class PnpSolver
 {
 public:
@@ -31,9 +51,7 @@ public:
 enum class ARMOR_STATE_
 {
 	LOSS = 0,
-	INIT = 1,
-	TRACK = 2,
-	GYRO = 3
+	TRACK = 1
 };
 
 struct Predict {
@@ -93,9 +111,19 @@ class AdaptiveEKF
 
 public:
     explicit AdaptiveEKF(const VectorX &X0 = VectorX::Zero())
-        : Xe(X0), P(MatrixXX::Identity()),Q(MatrixXX::Identity()), R(MatrixYY::Identity()) 
+        : Xe(X0), P(MatrixXX::Identity())
     {
         std::cout << P << std::endl;
+        Q << 0.15 ,0,    0,     0,  0,  0,
+             0,    1,  0,     0,  0,  0,
+             0,    0,    0.1,   0,  0,  0,
+             0,    0,    0,    0.3, 0,  0,
+             0,    0,    0,     0,  0.5,0,
+             0,    0,    0,     0,  0,  1;
+
+        R << 4,0,0,
+             0,1,0,
+             0,0,0.5;
     }
     
     void init(const VectorX &X0 = VectorX::Zero()) 
@@ -185,8 +213,6 @@ public:
 	GimbalPose run(GimbalPose &imu_data, std::vector<ArmorObject> &objects, double time);
 
 private:
-	Eigen::Vector3d predictTrack(Eigen::Vector3d &ptz_obj);
-	Eigen::Vector3d predictGyro(Eigen::Vector3d &ptz_obj);
 
 	void init()
 	{
@@ -194,8 +220,8 @@ private:
 		loss_cnt_ = 0;
 		last_state_ = ARMOR_STATE_::LOSS;
 	};
-private:
-	ARMOR_STATE_ state_;  // 装甲板识别状态
+public:
+	ARMOR_STATE_ state_ = ARMOR_STATE_::LOSS;  // 装甲板识别状态
 	ARMOR_STATE_ last_state_; // 装甲板上一帧状态
 	GimbalPose imu_data_; // 云台姿态
 
@@ -214,7 +240,7 @@ public:
 	Eigen::Vector3d last_velocity_; // 上一时刻的速度
 	Eigen::Vector3d last_location_; // 上一时刻目标在云台系下的坐标
 	Eigen::Vector3d CeresVelocity(std::deque<Eigen::Vector4d> velocities); // 最小二乘法拟合速度
-	int velocities_deque_size_ = 15;
+	int velocities_deque_size_ = 20;
 
     Eigen::Matrix3d transform_vector_;
     Eigen::Vector3d predict_location_;
@@ -227,6 +253,46 @@ public:
     cv::Point2f obj_pixe_;
 public:
     AdaptiveEKF<6, 3> ekf;  // 创建ekf
-    float move_;
+    float move_ = 0;
     GimbalPose last_eular_;
+
+public:
+    std::deque<Eigen::Vector4d> yaw_rad_; // 投入4个，但是目前只要1个
+    int yaw_rad_size_ = 30;
+    bool is_gyro_ = false;
+    Eigen::Vector3d last_posture_;
+    double threshold_yaw_rad_ = 60;
+    double R_ = 0.6;
+
+//**************逻辑判断***************//
+    int switch_count_ = 0;
+    int last_obj_nums = 0;
+    float last_id;
+    ArmorObject last_obj;
+    bool flag = false;
+    int v_count = 0;
+//**************逻辑判断***************//
+
+//**************反陀螺1***************//
+    Kalman_Filter kf;
+    Vector3d last_yaw_v;
+//**************反陀螺1***************//
+
+//**************反陀螺2***************//
+    int cnt_switch = 0;
+    Vector3d left_switch_;
+    Vector3d right_switch_;
+
+    std::deque<double> time_buff_;
+
+    float last_switch_time_;
+    int is_gyro_cnt_ = 0;
+    bool isSwitch(Vector3d up_switch, Vector3d down_switch);
+    bool isGyro(std::deque<double> time_buff_, Vector3d up_switch, Vector3d down_switch);
+
+    float time_diff = 0;
+//**************反陀螺2***************//
+
+    Eigen::Vector3d cam3ptz(GimbalPose gm,Vector3d pos);
+
 };

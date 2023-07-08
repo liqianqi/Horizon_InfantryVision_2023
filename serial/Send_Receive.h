@@ -46,6 +46,7 @@ class DataControler{
 public:
     DataControler():state_(0){}
     // 视觉向电控传数据
+    #pragma pack (1)
     struct VisionData
 	{
         float2uchar pitch_data_;
@@ -76,7 +77,10 @@ public:
             //aim_energy_bit_.f = 0;
         }
     };
+    #pragma pack ()
+
     // 电控向视觉发送数据
+    #pragma pack (1)
     struct Stm32Data{
         float2uchar pitch_data_;
         float2uchar yaw_data_;
@@ -91,6 +95,7 @@ public:
         int flag; // 自瞄和能量机关切换标志位
         uint8_t aim_bit_;
         bool dubug_print;
+        bool is_aim;
         bool color_;// true是蓝色，false是红色
         Stm32Data(){
             OnePointFive = {0};
@@ -102,13 +107,14 @@ public:
             time.f = 0;
             //aim_energy_bit_.f = 0;
             IsHave = false;
-            flag = 1;
+            flag = 0;
 			dubug_print = false;
             //dubug_print = true;
         }
         // 以字节传输数据
-
     };
+    #pragma pack ()
+
 public:
     int getBit(unsigned char b,int i)
     {

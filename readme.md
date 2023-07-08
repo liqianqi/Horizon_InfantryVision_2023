@@ -33,3 +33,5 @@ mo --input_model ./best_model.onnx --data_type FP32 --input_shape [1,3,416,416] 
 - 逻辑部分的BUG
 - 反陀螺编写
 - 大能量机关编写
+
+gnome-terminal -x sh

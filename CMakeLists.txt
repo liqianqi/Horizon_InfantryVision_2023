@@ -20,8 +20,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -O3 -pthread")
 
 
 # 库文件的放置目录
-set(OpenCV_DIR /home/liqianqi/opencv-4.5.5/build)
-set(SDK_DIR /home/liqianqi/Galaxy_Linux-x86_Gige-U3_32bits-64bits_1.2.2104.9022/Galaxy_camera/lib/x86_64/libgxiapi.so)
+set(OpenCV_DIR /home/robomaster/opencv-4.5.5/build)
+set(SDK_DIR /home/robomaster/Galaxy_Linux-x86_Gige-U3_32bits-64bits_1.2.2104.9022/Galaxy_camera/lib/x86_64/libgxiapi.so)
 
 set(python_libs "python3.8")
 include_directories(/opt/intel/openvino_2022/runtime/include/)
@@ -39,6 +39,9 @@ message("finded OpenVINO")
 find_package(OpenCV REQUIRED)
 find_package(PythonLibs REQUIRED)
 find_package(matplotlib_cpp REQUIRED)
+find_package(Boost COMPONENTS filesystem regex REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
+
 # Ceres
 find_package(Ceres REQUIRED)
 file(GLOB_RECURSE "/usr/lib/python3.8/config-x86_64-linux-gnu/*.so")
@@ -55,9 +58,9 @@ aux_source_directory(./DaHeng SRC_FILES)
 aux_source_directory(./serial SRC_FILES)
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
-	set(MV_SDK /home/liqianqi/Horizon_InfantryVision-2023/MidVision/lib/amd64/libMVSDK.so)
+	set(MV_SDK /home/robomaster/Horizon_InfantryVision_2023/MidVision/lib/amd64/libMVSDK.so)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
-	set(MV_SDK /home/liqianqi/Horizon_InfantryVision-2023/MidVision/lib/arm64/libMVSDK.so)
+	set(MV_SDK /home/robomaster/Horizon_InfantryVision_2023/MidVision/lib/arm64/libMVSDK.so)
 else()
 	message(FATAL_ERROR "Unsupport host system architecture: ${CMAKE_HOST_SYSTEM_PROCESSOR}!")
 endif()
@@ -73,3 +76,5 @@ target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES})
 target_link_libraries(${PROJECT_NAME} ${CERES_LIBRARIES})
 target_link_libraries(${PROJECT_NAME} matplotlib_cpp::matplotlib_cpp)
 target_link_libraries(${PROJECT_NAME} libpython3.8.so)
+target_link_libraries(${PROJECT_NAME} -lboost_system ${Boost_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} -lboost_system pthread)

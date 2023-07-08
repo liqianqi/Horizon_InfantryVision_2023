@@ -90,10 +90,10 @@ void drawPred(float conf, int left, int top, int right, int bottom, cv::Mat &fra
 		printf("[%d,%d]\n", landmark[2 * i], landmark[2 * i + 1]);
 		cv::circle(frame, cv::Point(landmark[2 * i], landmark[2 * i + 1]), 1, cv::Scalar(0, 0, 255), -1);
 	}
-	cv::line(frame, cv::Point(landmark[0], landmark[1]), cv::Point(landmark[2], landmark[3]), cv::Scalar(211,160,211), 1, 8);
-	cv::line(frame, cv::Point(landmark[2], landmark[3]), cv::Point(landmark[4], landmark[5]), cv::Scalar(211,160,211), 1, 8);
-	cv::line(frame, cv::Point(landmark[4], landmark[5]), cv::Point(landmark[6], landmark[7]), cv::Scalar(211,160,211), 1, 8);
-	cv::line(frame, cv::Point(landmark[6], landmark[7]), cv::Point(landmark[0], landmark[1]), cv::Scalar(211,160,211), 1, 8);
+	cv::line(frame, cv::Point(landmark[0], landmark[1]), cv::Point(landmark[4], landmark[5]), cv::Scalar(211,160,211), 2, 8);
+	cv::line(frame, cv::Point(landmark[2], landmark[3]), cv::Point(landmark[6], landmark[7]), cv::Scalar(211,160,211), 2, 8);
+	cv::line(frame, cv::Point(landmark[0], landmark[1]), cv::Point(landmark[2], landmark[3]), cv::Scalar(211,160,211), 2, 8);
+	cv::line(frame, cv::Point(landmark[4], landmark[5]), cv::Point(landmark[6], landmark[7]), cv::Scalar(211,160,211), 2, 8);
 
 	// cv::imwrite("detect.jpg",frame);
 }
@@ -126,11 +126,11 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
 					float *pdata = Idata + row_ind * nout;
 					row_ind++;
 					float box_score = (pdata[4]);
-					if (box_score > 0.50)
+					if (box_score > 0.55)
 					{
 						int id = argmax(pdata + 15, 8);
 						float face_score = pdata[15 + id];
-						if (face_score < 0.65)
+						if (face_score < 0.70)
 							continue;
 
 						float cx = pdata[0] * ratiow; /// cx
@@ -181,7 +181,16 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
 	{
 		int idx = indices[i];
 		printf("idx = %d\n", labels[idx]);
+
 		cv::Rect bbox = boxes[idx];
+		///cv::Mat armor_roi = srcimg(cv::Rect(bbox));
+		obj.color = color_judge(bbox,srcimg);
+		if(obj.color != set_color_)
+		{
+			std::cout << "不是敌方颜色" << std::endl;
+			continue;
+		}
+		
 		drawPred(confidences[idx], bbox.x, bbox.y,
 				 bbox.x + bbox.width, bbox.y + bbox.height, srcimg, landmarks[idx], labels[idx]);
 		obj.rect = bbox;
@@ -197,6 +206,24 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
 			obj.pts[i] = cv::Point2f(landmarks[idx][2 * i], landmarks[idx][2 * i + 1]);
 			//std::cout << "[x,y]  " << obj.pts[i].x << " " << obj.pts[i].y << std::endl;
 		}
+		if(bbox.x < 0)
+		{
+			bbox.x = 0;	
+		}
+		if(bbox.y < 0)
+		{
+			bbox.y = 0;	
+		}
+		if(bbox.x + bbox.width > srcimg.rows)
+		{
+			bbox.width = srcimg.rows - bbox.x;
+		}
+		if(bbox.y + bbox.height > srcimg.cols)
+		{
+			bbox.height = srcimg.cols - bbox.y;
+		}
+
+		
 		objects.emplace_back(obj);
 	}
 	std::cout << "[size]: " << objects.size() << std::endl;

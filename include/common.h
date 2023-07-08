@@ -16,11 +16,16 @@
 #include <termio.h>
 #include <algorithm>
 #include <opencv2/core/eigen.hpp>
+#include <boost/asio.hpp>
+#include <boost/bind.hpp>
 
-#define X_BIAS 
-#define Y_BIAS 0.08
-#define Z_BIAS 0.10
+#define X_BIAS -0.065
+#define Y_BIAS 0.035
+#define Z_BIAS 0.113
 
+// #define X_BIAS 0
+// #define Y_BIAS -0.045
+// #define Z_BIAS 0.093
 namespace lqq
 {
     template <int MAX_SIZE, class T>
