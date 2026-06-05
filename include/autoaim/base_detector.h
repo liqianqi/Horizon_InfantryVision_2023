@@ -68,7 +68,7 @@ public:
                 }
             }
             // Sum of red pixels > sum of blue pixels ?
-            std::cout << "r : " << sum_r << " b " << sum_b << std::endl;
+            VISION_DETECTOR_LOG("r : " << sum_r << " b " << sum_b << std::endl);
             color_id_ = sum_r > sum_b ? COLOR::RED : COLOR::BLUE;
             return color_id_;
         }

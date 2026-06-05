@@ -3,6 +3,7 @@
 #include "CameraApi.h"
 #include <iostream>
 #include <opencv2/opencv.hpp>
+#include <cstdlib>
 
 class MVCamera
 {
@@ -65,7 +66,7 @@ public:
 	~MVCamera()
 	{
 		CameraUnInit(hCamera);
-		delete []g_pRgbBuffer;
+		free(g_pRgbBuffer);
 	}
 
 	bool GetMat(cv::Mat &src)

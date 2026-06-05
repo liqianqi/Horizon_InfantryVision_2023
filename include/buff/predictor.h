@@ -145,9 +145,9 @@ public:
         Eigen::Matrix3d yaw_rotation_matrix_;
 
         
-        std::cout << "camera pose " << pos[0] << " " << pos[1] << " " << pos[2] << std::endl;
-        std::cout << "solve gm.pitch" << gm.pitch << std::endl;
-        std::cout << "solve gm.yaw" << gm.yaw << std::endl;
+        VISION_PREDICTOR_STREAM << "camera pose " << pos[0] << " " << pos[1] << " " << pos[2] << std::endl;
+        VISION_PREDICTOR_STREAM << "solve gm.pitch" << gm.pitch << std::endl;
+        VISION_PREDICTOR_STREAM << "solve gm.yaw" << gm.yaw << std::endl;
 
         pitch_rotation_matrix_
             << 1,
@@ -163,7 +163,7 @@ public:
 
         Eigen::Vector3d t_pos_ =  yaw_rotation_matrix_ * pitch_rotation_matrix_ * pos;
      
-        std::cout << "world pose " << t_pos_[0] << " " << t_pos_[1] << " " << t_pos_[2] << std::endl;
+        VISION_PREDICTOR_STREAM << "world pose " << t_pos_[0] << " " << t_pos_[1] << " " << t_pos_[2] << std::endl;
 
         Eigen::Matrix3d transform_vector;
         transform_vector = yaw_rotation_matrix_ * pitch_rotation_matrix_;

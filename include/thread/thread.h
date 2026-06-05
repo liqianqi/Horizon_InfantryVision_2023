@@ -1,6 +1,5 @@
 #pragma once
 #include "../common.h"
-#include "../../DaHeng/DaHengCamera.h"
 #include "../../include/autoaim/inference.h"
 #include "../../include/buff/base_detector_energy.h"
 #include "../../include/buff/predictor.h"
@@ -48,6 +47,19 @@ public:
 
     Horizon::DataControler::Stm32Data TimeSynchronization(std::deque<Horizon::DataControler::Stm32Data> &stm32s, double src_time);
 
+    void initCamera();
+    bool captureFrame(cv::Mat &frame, double &timestamp);
+    void pushFrame(const cv::Mat &frame, double timestamp);
+    bool popLatestFrame(cv::Mat &frame, double &timestamp);
+
+    void syncImuData(double src_time);
+    void processFrame(cv::Mat &img, double src_time);
+    void sendVisionData();
+    void drawDebugOverlay(cv::Mat &img);
+
+    bool openSerial();
+    void receiveSerialFrame();
+
 public:
 
     DetectorProcess infer;
@@ -57,6 +69,7 @@ public:
     Eigen::Vector3d coord;
     Eigen::Vector3d rotation;
 
+    mutex image_mutex_;
     mutex serial_mutex_;
 
     Horizon::DataControler data_controler_;

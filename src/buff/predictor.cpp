@@ -57,16 +57,16 @@ Eigen::Vector3d PnpSolver_::get_euler_angle(cv::Mat rotation_vector)
  */
 std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver_::poseCalculation(BuffObject &obj)
 {
-	std::cout << "[pose_solver] poseCalculation" << std::endl;
+	VISION_PREDICTOR_STREAM << "[pose_solver] poseCalculation" << std::endl;
 	std::vector<cv::Point3f> point_in_world; // 装甲板世界坐标系
 	// float width_height_ratio = std::sqrt(std::pow(obj.pts[3].x - obj.pts[0].x, 2) + std::pow(obj.pts[3].y - obj.pts[0].y, 2)) / std::sqrt(std::pow(obj.pts[1].x - obj.pts[0].x, 2) + std::pow(obj.pts[1].y - obj.pts[0].y, 2));
 
-	std::cout << "=======================" << std::endl;
+	VISION_PREDICTOR_STREAM << "=======================" << std::endl;
 	std::vector<cv::Point2f> point_in_pixe; // 像素坐标系
 
 	// for (auto pt : obj.pts)
 	// {
-	// 	std::cout << "&&&&&&&&&&&" << std::endl;
+	// 	VISION_PREDICTOR_STREAM << "&&&&&&&&&&&" << std::endl;
 	// 	point_in_pixe.emplace_back(pt);
 	// }
 	point_in_pixe.emplace_back(obj.pts[0]);
@@ -75,7 +75,7 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver_::poseCalculation(BuffObje
 	point_in_pixe.emplace_back(obj.pts[4]);
 
 
-	std::cout << "[notice] the rune armor" << std::endl;
+	VISION_PREDICTOR_STREAM << "[notice] the rune armor" << std::endl;
 	float fHalfX = RealSmallArmorWidth;	 // 将装甲板的宽的一半作为原点的x
 	float fHalfY = RealSmallArmorHeight; // 将装甲板的宽的一半作为原点的y
 
@@ -87,12 +87,12 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver_::poseCalculation(BuffObje
 
 	if (point_in_world.size() == 4 && point_in_pixe.size() == 4)
 	{
-		std::cout << "world and pixe all four points" << std::endl;
+		VISION_PREDICTOR_STREAM << "world and pixe all four points" << std::endl;
 	}
 	else
 	{
-		std::cout << "[world] size " << point_in_world.size() << std::endl;
-		std::cout << "[pixe] size " << point_in_pixe.size() << std::endl;
+		VISION_PREDICTOR_STREAM << "[world] size " << point_in_world.size() << std::endl;
+		VISION_PREDICTOR_STREAM << "[pixe] size " << point_in_pixe.size() << std::endl;
 	}
 
 	cv::Mat rvecs = cv::Mat::zeros(3, 1, CV_64FC1);
@@ -132,7 +132,7 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver_::poseCalculation(BuffObje
 	Eigen::Vector3d rotation;
 	rotation << roll, pitch, yaw;
 
-	std::cout << "[roll] " << roll * 180 / CV_PI << "  "
+	VISION_PREDICTOR_STREAM << "[roll] " << roll * 180 / CV_PI << "  "
 			  << "[pitch] " << pitch * 180 / CV_PI << "  "
 			  << "[yaw] " << yaw * 180 / CV_PI << std::endl;
 
@@ -140,12 +140,12 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver_::poseCalculation(BuffObje
 	pose.first = coord;
 	pose.second = rotation;
 
-	std::cout << "[x]: " << coord[0] << "  "
+	VISION_PREDICTOR_STREAM << "[x]: " << coord[0] << "  "
 			  << "[y]: " << coord[1] << "  [z]: " << coord[2] << std::endl;
 
 	// 为什么要传相机系的旋转角，因为当无法上车调试时，可以将就着调
-	std::cout << "camera pose finished!!!" << std::endl;
-	std::cout << "=======================" << std::endl;
+	VISION_PREDICTOR_STREAM << "camera pose finished!!!" << std::endl;
+	VISION_PREDICTOR_STREAM << "=======================" << std::endl;
 	return pose;
 }
 
@@ -271,7 +271,7 @@ float BuffPredictor::bullteFlyTime(Eigen::Vector3d coord)
 	p1.y = coord[1];
 	p1.z = coord[2];
 
-	std::cout << "[p1.x] " << p1.x << " [p1.x] " << p1.y << " [p1.z] " << p1.z << std::endl;
+	VISION_PREDICTOR_STREAM << "[p1.x] " << p1.x << " [p1.x] " << p1.y << " [p1.z] " << p1.z << std::endl;
 
 	float v0_ = 28;
 
@@ -285,16 +285,16 @@ float BuffPredictor::bullteFlyTime(Eigen::Vector3d coord)
 
 	if (p1.z < 0 && p1.x < 0)
 	{
-		std::cout << "gm_ptz.yaw" << gm_ptz.yaw << std::endl;
+		VISION_PREDICTOR_STREAM << "gm_ptz.yaw" << gm_ptz.yaw << std::endl;
 		gm_ptz.yaw = gm_ptz.yaw - 2 * (gm_ptz.yaw + 90);
-		std::cout << " bias " << 2 * (gm_ptz.yaw + 90) << std::endl;
+		VISION_PREDICTOR_STREAM << " bias " << 2 * (gm_ptz.yaw + 90) << std::endl;
 	}
 
 	if (p1.z < 0 && p1.x > 0)
 	{
 		gm_ptz.yaw = gm_ptz.yaw + 2 * (90 - gm_ptz.yaw);
 	}
-	// std::cout << "[yaw: ]" << gm_ptz.yaw << std::endl;
+	// VISION_PREDICTOR_STREAM << "[yaw: ]" << gm_ptz.yaw << std::endl;
 
 	// pitch值
 	float a = -0.5 * g * (std::pow(distance1, 2) / std::pow(v0_, 2));
@@ -323,7 +323,7 @@ float BuffPredictor::bullteFlyTime(Eigen::Vector3d coord)
 	// cout << "角度是：   " << tan_angle1  << "   " << tan_angle2 << endl;
 	float PI_pitch = (gm_ptz.pitch / 180) * CV_PI; // 弧度制
 
-	// std::cout << "[pitch: ]" << gm_ptz.pitch << std::endl;
+	// VISION_PREDICTOR_STREAM << "[pitch: ]" << gm_ptz.pitch << std::endl;
 
 	return distance1 / (v0_ * std::cos(PI_pitch));
 }

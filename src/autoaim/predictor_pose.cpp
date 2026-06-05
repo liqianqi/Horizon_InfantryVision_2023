@@ -1,77 +1,41 @@
 #include "../../include/autoaim/predictor_pose.h"
 
-#define SIN_POINT_NUM 400
-float SavePoint[SIN_POINT_NUM];	   // 保存点位
-float SecSavePoint[SIN_POINT_NUM]; // 保存点位
-int Times = 0;
+#include <algorithm>
+#include <cmath>
+#include <limits>
 
-void drawCurveData(cv::Point3f point)
+namespace
 {
+constexpr double kMinDt = 1e-3;
+constexpr double kMaxDt = 0.2;
+constexpr double kLostReidDistanceGate = 1.2;
+constexpr double kGyroEnterOmega = 1.5; // rad/s
+constexpr double kGyroExitOmega = 0.7;  // rad/s
+constexpr double kMinSpinRadius = 0.08;
+constexpr double kMaxSpinRadius = 0.8;
 
-	using namespace cv;
-	Mat poly_background_src_ = cv::Mat::zeros(640, 512, CV_8UC3);
-	poly_background_src_.setTo(cv::Scalar(0, 255, 0));
-
-	SavePoint[Times % SIN_POINT_NUM] = point.x * 100;
-
-	char test[100];
-	sprintf(test, "vx:%0.4f", point.x * 100);
-	cv::putText(poly_background_src_, test, cv::Point(10, 40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 1, 8);
-
-	if (point.x * 100 > 30)
+double clampDt(double dt)
+{
+	if (!std::isfinite(dt) || dt < kMinDt)
 	{
-		sprintf(test, " vx large:%s ", "true");
+		return kMinDt;
 	}
-	else
-	{
-		sprintf(test, " vx large:%s ", "false");
-	}
-	cv::putText(poly_background_src_, test, cv::Point(10, 120), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255, 0, 0), 1, 8);
+	return std::min(dt, kMaxDt);
+}
 
-	// 找最大值的方法只用循环一次就可以
-	float maxData = 0;
-	for (int i = 0; i <= Times && i < SIN_POINT_NUM; i++)
+double normalizeAngle(double angle)
+{
+	while (angle > CV_PI)
 	{
-		if (fabs(SavePoint[i]) > maxData)
-		{
-			maxData = fabs(SavePoint[i]);
-		}
+		angle -= 2.0 * CV_PI;
 	}
-	// 计算倍率
-	float bei = 10;
-	if (10 * maxData > poly_background_src_.rows / 2)
+	while (angle < -CV_PI)
 	{
-		bei = (poly_background_src_.rows / 2 - 10) / maxData;
+		angle += 2.0 * CV_PI;
 	}
-	if (10 * maxData < 150 && maxData != 0)
-	{
-		bei = 150.0 / maxData;
-	}
-	std::vector<cv::Point> points;
-	// 存入当前记录位置的后续单位,靠前的位置
-	int t = 0;
-	for (int i = (Times + 1) % SIN_POINT_NUM; i <= Times && i < SIN_POINT_NUM; i++)
-	{
-		points.push_back(Point((float)poly_background_src_.cols / SIN_POINT_NUM * t, poly_background_src_.rows / 2 + bei * SavePoint[i]));
-		t++;
-	}
-	// 绘制折线
-	// cv::polylines(poly_background_src_, points, false, cv::Scalar(255, 0, 0), 1, 8, 0);
-	// 存入之前的元素
-	for (int i = 0; i <= Times % SIN_POINT_NUM; i++)
-	{
-		points.push_back(Point((float)poly_background_src_.cols / SIN_POINT_NUM * t, poly_background_src_.rows / 2 + bei * SavePoint[i]));
-		t++;
-	}
+	return angle;
+}
 
-	cv::polylines(poly_background_src_, points, false, cv::Scalar(0, 0, 255), 3, 8, 0);
-
-	// cv::polylines(poly_background_src_, points, false, cv::Scalar(255, 0, 0), 3, 8, 0);
-
-	string windowName = "波形图-预测前";
-	namedWindow(windowName, 0);
-	imshow(windowName, poly_background_src_);
-	Times++;
 }
 
 PnpSolver::PnpSolver(const string yaml)
@@ -153,11 +117,11 @@ Eigen::Vector3d get_euler_angle(cv::Mat rotation_vector)
  */
 std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver::poseCalculation(ArmorObject &obj)
 {
-	std::cout << "[pose_solver] poseCalculation" << std::endl;
+	VISION_PREDICTOR_STREAM << "[pose_solver] poseCalculation" << std::endl;
 	std::vector<cv::Point3f> point_in_world; // 装甲板世界坐标系
 	float width_height_ratio = std::sqrt(std::pow(obj.pts[3].x - obj.pts[0].x, 2) + std::pow(obj.pts[3].y - obj.pts[0].y, 2)) / std::sqrt(std::pow(obj.pts[1].x - obj.pts[0].x, 2) + std::pow(obj.pts[1].y - obj.pts[0].y, 2));
 
-	std::cout << "=======================" << std::endl;
+	VISION_PREDICTOR_STREAM << "=======================" << std::endl;
 	std::vector<cv::Point2f> point_in_pixe; // 像素坐标系
 
 	for (auto pt : obj.pts)
@@ -170,14 +134,14 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver::poseCalculation(ArmorObje
 	// point_in_pixe.push_back(obj.pts[2]);
 	// point_in_pixe.push_back(obj.pts[3]);
 
-	std::cout << "[x,y]  " << point_in_pixe[0].x << " " << point_in_pixe[0].y << std::endl;
-	std::cout << "[x,y]  " << point_in_pixe[1].x << " " << point_in_pixe[1].y << std::endl;
-	std::cout << "[x,y]  " << point_in_pixe[2].x << " " << point_in_pixe[2].y << std::endl;
-	std::cout << "[x,y]  " << point_in_pixe[3].x << " " << point_in_pixe[3].y << std::endl;
+	VISION_PREDICTOR_STREAM << "[x,y]  " << point_in_pixe[0].x << " " << point_in_pixe[0].y << std::endl;
+	VISION_PREDICTOR_STREAM << "[x,y]  " << point_in_pixe[1].x << " " << point_in_pixe[1].y << std::endl;
+	VISION_PREDICTOR_STREAM << "[x,y]  " << point_in_pixe[2].x << " " << point_in_pixe[2].y << std::endl;
+	VISION_PREDICTOR_STREAM << "[x,y]  " << point_in_pixe[3].x << " " << point_in_pixe[3].y << std::endl;
 
 	if (width_height_ratio < 3.0 && (id != 1 && id != 7))
 	{
-		std::cout << "[notice] the small armor" << std::endl;
+		VISION_PREDICTOR_STREAM << "[notice] the small armor" << std::endl;
 		is_large_ = false;
 		float fHalfX = kRealSmallArmorWidth * 0.5f;	 // 将装甲板的宽的一半作为原点的x
 		float fHalfY = kRealSmallArmorHeight * 0.5f; // 将装甲板的宽的一半作为原点的y
@@ -188,7 +152,7 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver::poseCalculation(ArmorObje
 	}
 	else
 	{
-		std::cout << "[notice] the large armor" << std::endl;
+		VISION_PREDICTOR_STREAM << "[notice] the large armor" << std::endl;
 		is_large_ = true;
 		float fHalfX = kRealLargeArmorWidth * 0.5f;	 // 将装甲板的宽的一半作为原点的x
 		float fHalfY = kRealLargeArmorHeight * 0.5f; // 将装甲板的宽的一半作为原点的y
@@ -198,7 +162,7 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver::poseCalculation(ArmorObje
 		point_in_world.emplace_back(cv::Point3f(fHalfX, -fHalfY, 0));
 	}
 
-	// std::cout << "[notice] the small armor" << std::endl;
+	// VISION_PREDICTOR_STREAM << "[notice] the small armor" << std::endl;
 	// float fHalfX = kRealSmallArmorWidth * 0.5f;	 // 将装甲板的宽的一半作为原点的x
 	// float fHalfY = kRealSmallArmorHeight * 0.5f; // 将装甲板的宽的一半作为原点的y
 	// point_in_world.emplace_back(cv::Point3f(-fHalfX, fHalfY, 0));
@@ -208,12 +172,12 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver::poseCalculation(ArmorObje
 
 	if (point_in_world.size() == 4 && point_in_pixe.size() == 4)
 	{
-		std::cout << "world and pixe all four points" << std::endl;
+		VISION_PREDICTOR_STREAM << "world and pixe all four points" << std::endl;
 	}
 	else
 	{
-		std::cout << "[world] size " << point_in_world.size() << std::endl;
-		std::cout << "[pixe] size " << point_in_pixe.size() << std::endl;
+		VISION_PREDICTOR_STREAM << "[world] size " << point_in_world.size() << std::endl;
+		VISION_PREDICTOR_STREAM << "[pixe] size " << point_in_pixe.size() << std::endl;
 	}
 
 	cv::Mat rvecs = cv::Mat::zeros(3, 1, CV_64FC1);
@@ -253,7 +217,7 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver::poseCalculation(ArmorObje
 	Eigen::Vector3d rotation;
 	rotation << roll, pitch, yaw;
 
-	std::cout << "[roll] " << roll * 180 / CV_PI << "  "
+	VISION_PREDICTOR_STREAM << "[roll] " << roll * 180 / CV_PI << "  "
 			  << "[pitch] " << pitch * 180 / CV_PI << "  "
 			  << "[yaw] " << yaw * 180 / CV_PI << std::endl;
 
@@ -261,12 +225,12 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PnpSolver::poseCalculation(ArmorObje
 	pose.first = coord;
 	pose.second = rotation;
 
-	std::cout << "[x]: " << coord[0] << "  "
+	VISION_PREDICTOR_STREAM << "[x]: " << coord[0] << "  "
 			  << "[y]: " << coord[1] << "  [z]: " << coord[2] << std::endl;
 
 	// 为什么要传相机系的旋转角，因为当无法上车调试时，可以将就着调
-	std::cout << "camera pose finished!!!" << std::endl;
-	std::cout << "=======================" << std::endl;
+	VISION_PREDICTOR_STREAM << "camera pose finished!!!" << std::endl;
+	VISION_PREDICTOR_STREAM << "=======================" << std::endl;
 	return pose;
 }
 
@@ -297,7 +261,7 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PredictorPose::cam2ptz(Eigen::Vector
 		0, std::cos((imu_data_.pitch * CV_PI) / 180), std::sin((imu_data_.pitch * CV_PI) / 180),
 		0, -std::sin((imu_data_.pitch * CV_PI) / 180), std::cos((imu_data_.pitch * CV_PI) / 180);
 
-	std::cout << "yaw data is " << imu_data_.yaw << std::endl;
+	VISION_PREDICTOR_STREAM << "yaw data is " << imu_data_.yaw << std::endl;
 	Eigen::Matrix3d yaw_rotation_matrix_t;
 	yaw_rotation_matrix_t
 		<< std::cos(imu_data_.yaw * CV_PI / 180),
@@ -305,8 +269,8 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PredictorPose::cam2ptz(Eigen::Vector
 		0, 1, 0,
 		-std::sin(imu_data_.yaw * CV_PI / 180), 0, std::cos(imu_data_.yaw * CV_PI / 180);
 
-	std::cout << yaw_rotation_matrix_t * pitch_rotation_matrix_t << std::endl;
-	std::cout << pitch_rotation_matrix_t * yaw_rotation_matrix_t << std::endl;
+	VISION_PREDICTOR_STREAM << yaw_rotation_matrix_t * pitch_rotation_matrix_t << std::endl;
+	VISION_PREDICTOR_STREAM << pitch_rotation_matrix_t * yaw_rotation_matrix_t << std::endl;
 	/**
 	 * 写两种矩阵的原因是因为位置和姿态所用坐标系不同
 	 * 用欧拉较或泰特布莱恩角表示旋转，顺序十分重要，一般是X-Y-Z，但RM这种小角度，绕定轴动轴都一样顺序什么样结果都一样
@@ -325,6 +289,235 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> PredictorPose::cam2ptz(Eigen::Vector
 	pose.second = rotation;
 
 	return pose;
+}
+
+Eigen::Vector3d PredictorPose::spinArmorPosition(const Eigen::Matrix<double, 11, 1> &state, double dt, int armor_group) const
+{
+	const double phase_offset = armor_group * (CV_PI / 2.0);
+	const double theta = state[6] + state[7] * dt + phase_offset;
+	const double radius = (armor_group == 0 || armor_group == 2) ? 
+	                       std::max(0.0, state[8]) : std::max(0.0, state[9]);
+	const double height_offset = (armor_group == 0 || armor_group == 2) ? 0.0 : state[10];
+	
+	Eigen::Vector3d armor;
+	armor[0] = state[0] + state[1] * dt + radius * std::cos(theta);
+	armor[1] = state[2] + state[3] * dt + height_offset;
+	armor[2] = state[4] + state[5] * dt + radius * std::sin(theta);
+	return armor;
+}
+
+Eigen::Vector3d PredictorPose::spinCenterPosition(const Eigen::Matrix<double, 11, 1> &state, double dt) const
+{
+	Eigen::Vector3d center;
+	center[0] = state[0] + state[1] * dt;
+	center[1] = state[2] + state[3] * dt;
+	center[2] = state[4] + state[5] * dt;
+	return center;
+}
+
+void PredictorPose::resetSpinEkf(const Eigen::Vector3d &measured_armor, double time, double r1, double r2, double delta_y)
+{
+	Eigen::Matrix<double, 11, 1> state = Eigen::Matrix<double, 11, 1>::Zero();
+	const double use_r1 = std::clamp(r1, 0.0, kMaxSpinRadius);
+	const double use_r2 = std::clamp(r2, 0.0, kMaxSpinRadius);
+	
+	// 假设初始跟踪的是组0装甲板 (相位=0)
+	state[0] = measured_armor[0] - use_r1;  // center x
+	state[1] = 0.0;                          // vx
+	state[2] = measured_armor[1];            // center y
+	state[3] = 0.0;                          // vy
+	state[4] = measured_armor[2];            // center z
+	state[5] = 0.0;                          // vz
+	state[6] = 0.0;                          // phase
+	state[7] = 0.0;                          // omega
+	state[8] = use_r1;                       // r1 (组0/2半径)
+	state[9] = use_r2 > 0 ? use_r2 : use_r1 * 1.5;  // r2 (组1/3半径，默认为r1的1.5倍)
+	state[10] = delta_y;                     // 高度差
+	
+	spin_ekf.init(state);
+	spin_ekf.P = Eigen::Matrix<double, 11, 11>::Identity() * 0.2;
+	spin_ekf.P(9, 9) = 0.3;   // r2 初始不确定性更大
+	spin_ekf.P(10, 10) = 0.1; // delta_y 初始不确定性
+	
+	current_armor_group_ = 0;
+	last_location_ = measured_armor;
+	last_velocity_ = Eigen::Vector3d::Zero();
+	last_time_ = time;
+}
+
+void PredictorPose::initSpinFromSwitch(const Eigen::Vector3d &current_armor, const Eigen::Vector3d &last_armor, double dt)
+{
+	// 计算水平面上的距离来估计半径
+	const double dx = current_armor[0] - last_armor[0];
+	const double dz = current_armor[2] - last_armor[2];
+	const double horizontal_dist = std::sqrt(dx * dx + dz * dz);
+	
+	// 相邻装甲板角度差为 π/2，所以 chord = 2 * r * sin(π/4) = r * sqrt(2)
+	// 因此 r = chord / sqrt(2)
+	const double estimated_radius = std::clamp(horizontal_dist / std::sqrt(2.0), kMinSpinRadius, kMaxSpinRadius);
+	
+	// 计算高度差 (相邻装甲板可能有高度差)
+	const double height_diff = current_armor[1] - last_armor[1];
+	
+	// 估计旋转中心 (使用水平面投影)
+	// 中心到两个相邻装甲板的向量夹角为 π/2
+	Eigen::Vector2d v_last(last_armor[0], last_armor[2]);
+	Eigen::Vector2d v_curr(current_armor[0], current_armor[2]);
+	Eigen::Vector2d midpoint = (v_last + v_curr) * 0.5;
+	Eigen::Vector2d perpendicular(-dz, dx);
+	perpendicular.normalize();
+	
+	// 中心到弦中点的距离 = r * cos(π/4) = r / sqrt(2)
+	const double dist_to_center = estimated_radius / std::sqrt(2.0);
+	Eigen::Vector2d center_2d = midpoint + perpendicular * dist_to_center;
+	
+	// 判断当前装甲板属于哪组 (基于与上一个装甲板的高度差)
+	// 如果高度差显著，说明切换到了另一组；否则是同组对侧
+	const int new_armor_group = (std::abs(height_diff) > 0.03) ? 
+	                            (1 - current_armor_group_) : current_armor_group_;
+	
+	// 计算相位角
+	const double theta = std::atan2(current_armor[2] - center_2d[1], current_armor[0] - center_2d[0]);
+	const double last_theta = std::atan2(last_armor[2] - center_2d[1], last_armor[0] - center_2d[0]);
+	
+	// 角速度 (相邻装甲板间隔 π/2)
+	double delta_angle = normalizeAngle(theta - last_theta);
+	// 确保角度变化方向正确 (应该接近 ±π/2)
+	if (std::abs(delta_angle) < CV_PI / 4) {
+		delta_angle = (delta_angle > 0) ? CV_PI / 2 : -CV_PI / 2;
+	}
+	const double omega = delta_angle / clampDt(dt);
+
+	Eigen::Matrix<double, 11, 1> state = spin_ekf.Xe;
+	state[0] = center_2d[0];
+	state[1] = last_velocity_[0];
+	state[2] = (current_armor_group_ == 0 || current_armor_group_ == 2) ? 
+	           last_armor[1] : last_armor[1] - spin_ekf.Xe[10];  // center y (组0/2的高度)
+	state[3] = last_velocity_[1];
+	state[4] = center_2d[1];
+	state[5] = last_velocity_[2];
+	state[6] = theta - new_armor_group * (CV_PI / 2.0);  // 转换为装甲板0的相位
+	state[7] = omega;
+	
+	// 根据当前组别更新对应的半径
+	if (new_armor_group == 0 || new_armor_group == 2) {
+		state[8] = estimated_radius;  // r1
+	} else {
+		state[9] = estimated_radius;  // r2
+	}
+	
+	// 更新高度差
+	if (std::abs(height_diff) > 0.02) {
+		state[10] = (new_armor_group == 1 || new_armor_group == 3) ? 
+		            height_diff : -height_diff;
+	}
+	
+	spin_ekf.init(state);
+	spin_ekf.P = Eigen::Matrix<double, 11, 11>::Identity() * 0.08;
+	spin_ekf.P(9, 9) = 0.15;   // r2 不确定性
+	spin_ekf.P(10, 10) = 0.05; // delta_y 不确定性
+
+	current_armor_group_ = new_armor_group;
+	left_switch_ = last_armor;
+	right_switch_ = current_armor;
+}
+
+void PredictorPose::updateSpinMode(bool armor_switched, double dt)
+{
+	const double omega = std::abs(spin_ekf.Xe[7]);
+	if (armor_switched && dt > 0.04 && dt < 1.0)
+	{
+		is_gyro_cnt_++;
+	}
+	else if (!armor_switched && is_gyro_cnt_ > 0)
+	{
+		is_gyro_cnt_--;
+	}
+
+	if (omega > kGyroEnterOmega || is_gyro_cnt_ >= 3)
+	{
+		state_ = ARMOR_STATE_::GYRO;
+		is_gyro_ = true;
+		return;
+	}
+
+	if (omega < kGyroExitOmega && is_gyro_cnt_ == 0)
+	{
+		state_ = ARMOR_STATE_::TRANSLATE;
+		is_gyro_ = false;
+	}
+}
+
+int PredictorPose::detectArmorGroup(const Eigen::Vector3d &armor_pos) const
+{
+	// 基于当前状态预测各组装甲板位置，选择最接近观测的组
+	double best_dist = std::numeric_limits<double>::max();
+	int best_group = current_armor_group_;
+	
+	for (int group = 0; group < 4; group++) {
+		Eigen::Vector3d pred = spinArmorPosition(spin_ekf.Xe, 0.0, group);
+		double dist = (pred - armor_pos).norm();
+		if (dist < best_dist) {
+			best_dist = dist;
+			best_group = group;
+		}
+	}
+	return best_group;
+}
+
+Eigen::Vector3d PredictorPose::runSpinEkf(const Eigen::Vector3d &measured_armor, double dt, bool allow_update)
+{
+	const double use_dt = clampDt(dt);
+	
+	// 设置过程噪声矩阵 Q (11x11)
+	spin_ekf.Q.setZero();
+	spin_ekf.Q(0, 0) = 0.01;   // center x
+	spin_ekf.Q(1, 1) = 0.25;   // vx
+	spin_ekf.Q(2, 2) = 0.01;   // center y
+	spin_ekf.Q(3, 3) = 0.08;   // vy
+	spin_ekf.Q(4, 4) = 0.01;   // center z
+	spin_ekf.Q(5, 5) = 0.25;   // vz
+	spin_ekf.Q(6, 6) = is_gyro_ ? 0.03 : 0.08;   // phase
+	spin_ekf.Q(7, 7) = is_gyro_ ? 0.15 : 0.35;   // omega
+	spin_ekf.Q(8, 8) = is_gyro_ ? 0.008 : 0.03;  // r1
+	spin_ekf.Q(9, 9) = is_gyro_ ? 0.008 : 0.03;  // r2
+	spin_ekf.Q(10, 10) = 0.005; // delta_y 变化较小
+
+	spin_ekf.R.setIdentity();
+	spin_ekf.R *= is_gyro_ ? 0.04 : 0.025;
+
+	SpinPredict predict{use_dt};
+	Eigen::Matrix<double, 11, 1> state = spin_ekf.predict(predict);
+	
+	if (allow_update)
+	{
+		// 检测当前观测的装甲板属于哪组
+		current_armor_group_ = detectArmorGroup(measured_armor);
+		
+		Eigen::Matrix<double, 3, 1> measurement;
+		measurement << measured_armor[0], measured_armor[1], measured_armor[2];
+		SpinMeasure measure;
+		measure.armor_group = current_armor_group_;
+		state = spin_ekf.update(measure, measurement);
+	}
+	else
+	{
+		spin_ekf.Xe = state;
+	}
+
+	if (!state.allFinite())
+	{
+		resetSpinEkf(measured_armor, current_time_);
+		return measured_armor;
+	}
+
+	// 约束状态变量
+	spin_ekf.Xe[6] = normalizeAngle(spin_ekf.Xe[6]);
+	spin_ekf.Xe[8] = std::clamp(spin_ekf.Xe[8], kMinSpinRadius, kMaxSpinRadius);  // r1
+	spin_ekf.Xe[9] = std::clamp(spin_ekf.Xe[9], kMinSpinRadius, kMaxSpinRadius);  // r2
+	spin_ekf.Xe[10] = std::clamp(spin_ekf.Xe[10], -0.15, 0.15);  // delta_y 约束在合理范围
+	
+	return spinArmorPosition(spin_ekf.Xe, 0.0, current_armor_group_);
 }
 
 /**
@@ -358,374 +551,130 @@ GimbalPose PredictorPose::run(GimbalPose &imu_data, std::vector<ArmorObject> &ob
 	Eigen::Matrix3d transform_vector;
 	transform_vector =  yaw_rotation_matrix_t * pitch_rotation_matrix_t;
 	transform_vector_ = transform_vector.inverse();
-	// 如果这一帧没有装甲板，先看看init_是true还是false
-	// 是true
-
-	if (!objects.size())
 	{
-		loss_cnt_++;
-		if (loss_cnt_ > 250)
+		const double dt = clampDt(current_time_ - last_time_);
+
+		if (objects.empty())
 		{
-			loss_cnt_ = 250;
-		}
-		if (state_ == ARMOR_STATE_::LOSS)
-		{
-			return last_eular_;
-		}
-		if (loss_cnt_ > 30)
-		{
-			state_ = ARMOR_STATE_::LOSS;
+			loss_cnt_ = std::min(loss_cnt_ + 1, 250);
+			if (init_ || state_ == ARMOR_STATE_::LOSS)
+			{
+				state_ = ARMOR_STATE_::LOST_REID;
+				last_state_ = state_;
+				return last_eular_;
+			}
+
+			if (loss_cnt_ > 30)
+			{
+				state_ = ARMOR_STATE_::LOST_REID;
+				last_state_ = state_;
+				init_ = true;
+				return last_eular_;
+			}
+
+			Eigen::Vector3d filtered_armor = runSpinEkf(last_location_, dt, false);
+			float fly_t = bullteFlyTime(filtered_armor);
+			Eigen::Vector3d predict_location = spinArmorPosition(spin_ekf.Xe, fly_t, current_armor_group_);
+			bullteFlyTime(predict_location);
+
+			last_location_ = filtered_armor;
+			last_velocity_ << spin_ekf.Xe[1], spin_ekf.Xe[3], spin_ekf.Xe[5];
+			last_time_ = current_time_;
 			last_state_ = state_;
-			// 返回最后一帧的云台角，避免剧烈晃动
-			// return
-			init_ = true;
-			velocities_.clear();
-			yaw_rad_.clear();
-			ekf.P = Eigen::Matrix<double, 6, 6>::Identity();
-			time_buff_.clear();
-			// std::cout << RED1 << "LOSS ARMOR!!!" << std::endl;
-			return last_eular_;
-		}
-		state_ = ARMOR_STATE_::TRACK;
-		last_state_ = state_;
-		// 根据上一帧位置和速度在做预测，100次  !!! return
-		Eigen::Vector3d current_pose;
-		current_pose[0] = last_location_[0] + last_velocity_[0] * (current_time_ - last_time_);
-		current_pose[1] = last_location_[1] + last_velocity_[1] * (current_time_ - last_time_);
-		current_pose[2] = last_location_[2] + last_velocity_[2] * (current_time_ - last_time_);
-		float fly_t = bullteFlyTime(current_pose);
+			predict_location_ = predict_location;
 
-		Eigen::Vector3d predict_pose;
-		predict_pose[0] = current_pose[0] + last_velocity_[0] * fly_t;
-		predict_pose[1] = current_pose[1] + last_velocity_[1] * fly_t;
-		predict_pose[2] = current_pose[2] + last_velocity_[2] * fly_t;
-
-		bullteFlyTime(current_pose);
-		// last_time_ = current_time_;
-		last_location_ = current_pose;
-		predict_location_ = predict_pose;
-		GimbalPose gm = gm_ptz;
-		last_eular_ = gm;
-
-		return gm;
-	}
-
-	loss_cnt_ = 0;
-	if (init_)
-	{
-		std::cout << "init finished!!!" << std::endl;
-		init();
-		state_ = ARMOR_STATE_::TRACK;
-		last_state_ = state_;
-		last_obj_nums = objects.size();
-		// 选择一个装甲板
-		float distances[objects.size()];
-		for (int i = 0; i < objects.size(); i++)
-		{
-			cv::Point2f center = (objects[i].pts[0] + objects[i].pts[2]) / 2;
-			distances[i] = (center.x - 512) + (center.y - 640);
+			GimbalPose gm = gm_ptz;
+			gm.yaw = gm.yaw + 1.5;
+			gm.pitch = gm.pitch - 3.5;
+			last_eular_ = gm;
+			return gm;
 		}
 
-		int index = 0;
-		for (int i = 1; i < objects.size(); i++)
+		loss_cnt_ = 0;
+		const bool reidentify = init_ || state_ == ARMOR_STATE_::LOSS || state_ == ARMOR_STATE_::LOST_REID;
+		ArmorObject obj = ArmorSelectByPrediction(objects, reidentify);
+		obj_pixe_ = (obj.pts[0] + obj.pts[2]) / 2;
+
+		if (reidentify)
 		{
-			if (distances[i] < distances[index])
-				index = i;
-		}
-		ArmorObject obj = objects[index];
-
-		std::pair<Eigen::Vector3d, Eigen::Vector3d> world_cam_pose;
-		world_cam_pose = pnp_solve_->poseCalculation(obj);
-
-		std::pair<Eigen::Vector3d, Eigen::Vector3d> cam_ptz_pose;
-		// cam_ptz_pose = cam2ptz(world_cam_pose.first, pnp_solve_->rotate_world_cam_);
-
-		cam_ptz_pose.first = cam3ptz(imu_data_, world_cam_pose.first);
-		cam_ptz_pose.second = world_cam_pose.second;
-
-		std::cout << "[world x]: " << cam_ptz_pose.first[0] << "  "
-				  << "[world y]: " << cam_ptz_pose.first[1] << "  [world z]: " << cam_ptz_pose.first[2] << std::endl;
-
-		last_pose_ = cam_ptz_pose; // 记录这一时刻，为下一时刻预测做准备
-		init_ = false;
-		last_location_ = cam_ptz_pose.first;
-		// !!! return
-		float fly_t = bullteFlyTime(cam_ptz_pose.first);
-		last_time_ = current_time_;
-		GimbalPose gm = gm_ptz;
-		velocities_.clear();
-		last_id = obj.label;
-		last_obj = obj;
-		last_eular_ = gm;
-		return gm;
-	}
-
-	std::cout << "continue track armor!!!" << std::endl;
-
-	// 选择一个装甲板
-	// 当卡方检验过大时仍然要打开初始化开关
-	state_ = ARMOR_STATE_::TRACK;
-	ArmorObject obj = ArmorSelect(objects);
-	obj_pixe_ = (obj.pts[0] + obj.pts[2]) / 2;
-	// world_cam_pose = pnp_solve_->poseCalculation(obj);
-
-	std::pair<Eigen::Vector3d, Eigen::Vector3d> cam_ptz_pose;
-
-	float distance_;
-	distance_ = std::sqrt(obj.coord[0] * obj.coord[0] + obj.coord[2] * obj.coord[2]);
-	float yaw_now = std::asin(obj.coord[0] / distance_) * 180 / CV_PI;
-
-	float distance_last;
-	distance_last = std::sqrt(last_obj.coord[0] * last_obj.coord[0] + last_obj.coord[2] * last_obj.coord[2]);
-	float yaw_last = std::asin(last_obj.coord[0] / distance_last) * 180 / CV_PI;
-
-	//========================antigyro========================//
-	flag = false;
-	if (isSwitch(obj.coord, last_obj.coord))
-	{
-		cnt_switch++;
-		flag = true;
-		Eigen::Vector3d now_record = obj.coord;
-		velocities_.clear();
-		if (cnt_switch < 6 && is_gyro_ == false)
-		{
-			obj.coord = last_obj.coord + last_velocity_ * (current_time_ - last_time_);
-			obj.pyr = last_obj.pyr;
-		}
-		
-		if(std::abs(current_time_ - last_switch_time_) > 1.0)
-		{
+			VISION_PREDICTOR_STREAM << "spin ekf init finished!!!" << std::endl;
+			init();
+			state_ = ARMOR_STATE_::TRANSLATE;
+			last_state_ = state_;
+			init_ = false;
+			flag = false;
+			is_gyro_ = false;
 			is_gyro_cnt_ = 0;
+			cnt_switch = 0;
+			last_obj_nums = objects.size();
+			last_id = obj.label;
+			last_obj = obj;
+			last_pose_ = {obj.coord, obj.pyr};
+			resetSpinEkf(obj.coord, current_time_);
+
+			float fly_t = bullteFlyTime(obj.coord);
+			Eigen::Vector3d predict_location = spinArmorPosition(spin_ekf.Xe, fly_t, current_armor_group_);
+			bullteFlyTime(predict_location);
+			predict_location_ = predict_location;
+
+			GimbalPose gm = gm_ptz;
+			gm.yaw = gm.yaw + 1.5;
+			gm.pitch = gm.pitch - 3.5;
+			last_eular_ = gm;
+			return gm;
+		}
+
+		VISION_PREDICTOR_STREAM << "continue spin ekf track armor!!!" << std::endl;
+		flag = isSwitch(obj.coord, last_obj.coord);
+		if (flag)
+		{
+			cnt_switch++;
+			initSpinFromSwitch(obj.coord, last_obj.coord, dt);
 			last_switch_time_ = current_time_;
 		}
-
-		if((std::abs(current_time_ - last_switch_time_)) > 0.15
-			&& (current_time_ - last_switch_time_) < 1.0)
+		else
 		{
-			is_gyro_cnt_++;
+			cnt_switch = 0;
 		}
 
-		if(is_gyro_cnt_ > 4)
+		if (std::abs(current_time_ - last_switch_time_) > 1.0)
 		{
-			is_gyro_ = true;
-			if (yaw_now > yaw_last)
-			{
-				right_switch_ = obj.coord;
-				left_switch_ = last_obj.coord;
-			}
-			else
-			{
-				right_switch_ = last_obj.coord;
-				left_switch_ = obj.coord;
-			}
-		}else
-		{
-			is_gyro_ = false;
+			is_gyro_cnt_ = 0;
 		}
 
-		last_switch_time_ = current_time_;
-		// if(current_time_ - last_switch_time_ > 3)
-		// {
-		// 	last_switch_time_ = current_time_;
-		// 	time_buff_.clear();
-		// }
+		Eigen::Vector3d filtered_armor = runSpinEkf(obj.coord, dt, true);
+		updateSpinMode(flag, dt);
+		time_diff = current_time_ - last_switch_time_;
 
-		// if((current_time_ - last_switch_time_) > 0.25 && (current_time_ - last_switch_time_) < 0.8)
-		// {
-		// 	if (time_buff_.size() < 6)
-		// 	{
-		// 		time_buff_.emplace_back(current_time_);
-		// 	}
-		// 	else
-		// 	{
-		// 		time_buff_.pop_front();
-		// 		time_buff_.emplace_back(current_time_);
-		// 	}
-		// 	last_switch_time_ = current_time_;
-		// }
+		float fly_t = bullteFlyTime(filtered_armor);
+		Eigen::Vector3d predict_location = spinArmorPosition(spin_ekf.Xe, fly_t, current_armor_group_);
+		bullteFlyTime(predict_location);
 
-		// if(time_buff_.size() > 5)
-		// {
-		// 	is_gyro_ = true;
-		// }else
-		// {
-		// 	is_gyro_ = false;
-		// }
-	
+		last_velocity_ << spin_ekf.Xe[1], spin_ekf.Xe[3], spin_ekf.Xe[5];
+		move_ = (predict_location[0] - filtered_armor[0]) * 100.0;
+		last_location_ = filtered_armor;
+		last_time_ = current_time_;
+		last_state_ = state_;
+		last_pose_ = {filtered_armor, obj.pyr};
+		predict_location_ = predict_location;
+		last_obj = obj;
+		last_id = obj.label;
+
+		GimbalPose gm = gm_ptz;
+		gm.yaw = gm.yaw + 1.5;
+		gm.pitch = gm.pitch - 3.5;
+		last_eular_ = gm;
+
+		VISION_PREDICTOR_STREAM << "[spin ekf vx: " << last_velocity_[0]
+		                        << " vy: " << last_velocity_[1]
+		                        << " vz: " << last_velocity_[2]
+		                        << " omega: " << spin_ekf.Xe[7]
+		                        << " r1: " << spin_ekf.Xe[8]
+		                        << " r2: " << spin_ekf.Xe[9]
+		                        << " dy: " << spin_ekf.Xe[10]
+		                        << " group: " << current_armor_group_ << " ]" << std::endl;
+		return gm;
 	}
-
-	std::cout << "time_buff_ size is: " << time_buff_.size() << std::endl;
-	
-	if (!flag)
-	{
-		cnt_switch = 0;
-	}
-
-	if(std::abs(current_time_ - last_switch_time_) > 1.0)
-	{
-		is_gyro_ = false;
-		is_gyro_cnt_ = 0;
-	}
-
-	time_diff = current_time_ - last_switch_time_;
-
-	cam_ptz_pose.first = obj.coord;
-	cam_ptz_pose.second = obj.pyr;
-	//========================antigyro========================//
-
-	// cam_ptz_pose = world_cam_pose;
-	std::cout << "[world x]: " << cam_ptz_pose.first[0] << "  "
-			  << "[world y]: " << cam_ptz_pose.first[1] << "  [world z]: " << cam_ptz_pose.first[2] << std::endl;
-
-	//========================EKF========================//
-
-	std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
-
-	// Predict predictfunc;
-	// Measure measure;
-
-	// if (isnan(ekf.P.sum()))
-	// {
-	// 	ekf.P = Eigen::Matrix<double, 6, 6>::Identity();
-	// }
-
-	// Eigen::Matrix<double, 6, 1> Xh;
-	// Xh << last_location_[0], last_velocity_[0], last_location_[1], last_velocity_[1], last_location_[2], last_velocity_[2];
-	// // Xh << last_location_[0], last_velocity_[0], last_location_[1], last_velocity_[1], last_location_[2], last_velocity_[2];
-	// ekf.init(Xh);
-	// Eigen::Matrix<double, 6, 1> Xr;
-	// Xr << cam_ptz_pose.first(0, 0), 0, cam_ptz_pose.first(1, 0), 0, cam_ptz_pose.first(2, 0), 0;
-	// Eigen::Matrix<double, 3, 1> Yr;
-	// measure(Xr.data(), Yr.data()); // 转化成pitch,yaw,distance
-	// predictfunc.delta_t = (current_time_ - last_time_);
-	// ekf.predict(predictfunc);								  // 更新预测器，此时预测器里的是预测值
-	// Eigen::Matrix<double, 6, 1> Xe = ekf.update(measure, Yr); // 更新滤波器，输入真实的球面坐标 Yr
-
-	// if (!isnan(Xe[0]) && !isnan(Xe[2]) && !isnan(Xe[4]))
-	// {
-	// 	// cam_ptz_pose.first[0] = Xe[0];
-	// 	// cam_ptz_pose.first[1] = Xe[2];
-	// 	// cam_ptz_pose.first[2] = Xe[4];
-	// }
-	// else
-	// {
-	// 	ekf.P = Eigen::Matrix<double, 6, 6>::Identity();
-	// }
-
-	std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
-	std::chrono::duration<double> time_run = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t0);
-
-	std::cout << "[EKF time is : " << time_run.count() * 1000 << " ]" << std::endl;
-
-	//========================EKF========================//
-
-	kf.is_change_direction_ = flag;
-	cam_ptz_pose.first = kf.KalmanMainRun(cam_ptz_pose.first,last_velocity_);
-
-	std::cout << "world coord solve finished" << std::endl;
-
-	float fly_t = bullteFlyTime(cam_ptz_pose.first);
-
-	std::cout << "the first fly time geted" << std::endl;
-
-	Eigen::Vector4d current_state; // 现在的速度: 直接计算的速度，未经过拟合
-	current_state[0] = cam_ptz_pose.first[0];
-	current_state[1] = cam_ptz_pose.first[1];
-	current_state[2] = cam_ptz_pose.first[2];
-	current_state[3] = current_time_;
-
-	if (velocities_.size() < velocities_deque_size_)
-	{
-		velocities_.push_back(current_state);
-	}
-	else
-	{
-		velocities_.pop_front();
-		velocities_.push_back(current_state);
-	}
-
-	Eigen::Vector3d now_v = CeresVelocity(velocities_);
-
-	if (isnan(now_v[0]) || isnan(now_v[1]) || isnan(now_v[2]))
-	{
-		now_v = last_velocity_;
-	}
-
-	// now_v = (last_velocity_ + now_v) / 2;
-	//now_v[0] = 0;
-	now_v[1] = 0;
-	//now_v[2] = 0;
-	cv::Point3f point;
-	point.x = now_v[0];
-	// drawCurveData(point);
-
-	Eigen::Vector3d predict_location;
-
-	std::cout << "[ vx: " << now_v[0] << " vy: " << now_v[1] << " vz: " << now_v[2] << " ]" << std::endl;
-
-	predict_location[0] = cam_ptz_pose.first[0] + (now_v[0] * (fly_t));
-	predict_location[1] = cam_ptz_pose.first[1] + (now_v[1] * (fly_t));
-	predict_location[2] = cam_ptz_pose.first[2] + (now_v[2] * (fly_t));
-
-	if (is_gyro_)
-	{
-		float distance_;
-		distance_ = std::sqrt(predict_location[0] * predict_location[0] + predict_location[2] * predict_location[2]);
-		float yaw_pre = std::asin(predict_location[0] / distance_) * 180 / CV_PI;
-
-		float distance_right;
-		distance_right = std::sqrt(right_switch_[0] * right_switch_[0] + right_switch_[2] * right_switch_[2]);
-		float yaw_right = std::asin(right_switch_[0] / distance_right) * 180 / CV_PI;
-
-		float distance_left;
-		distance_left = std::sqrt(left_switch_[0] * left_switch_[0] + left_switch_[2] * left_switch_[2]);
-		float yaw_left = std::asin(left_switch_[0] / distance_left) * 180 / CV_PI;
-
-		if(std::sqrt(std::pow(left_switch_[0] - right_switch_[0],2) 
-			+ std::pow(left_switch_[1] - right_switch_[1],2) 
-			+ std::pow(left_switch_[2] - right_switch_[2],2)) < 0.6)
-		{
-			if (yaw_pre > yaw_right)
-			{
-				predict_location = left_switch_;
-			}
-			else if (yaw_pre < yaw_left)
-			{
-				predict_location = right_switch_;
-			}
-		}else
-		{
-			is_gyro_ = false;
-		}
-	}
-
-	std::cout << "predict expression " << (now_v[0] * (fly_t)) * 100 << " cm " << std::endl;
-	move_ = (now_v[0] * (fly_t)) * 100;
-
-	bullteFlyTime(predict_location);
-
-	last_location_ = cam_ptz_pose.first;
-	last_time_ = current_time_;
-	last_velocity_ = now_v;
-	last_state_ = state_;
-	last_pose_ = cam_ptz_pose;
-	predict_location_ = predict_location;
-
-	GimbalPose gm = gm_ptz;
-	gm.yaw = gm.yaw + 1.5;
-	gm.pitch = gm.pitch - 3.5;
-	last_obj = obj;
-	last_eular_ = gm;
-
-	cv::Point3f test_P;
-	test_P.x = gm.yaw;
-	// drawCurveData(point);
-	{
-		std::cout << GREEN << "predict finished" << std::endl;
-		std::cout << WHITE << std::endl;
-	}
-
-	return gm;
 }
 
 /**
@@ -743,7 +692,7 @@ float PredictorPose::bullteFlyTime(Eigen::Vector3d coord)
 	p1.y = coord[1];
 	p1.z = coord[2];
 
-	std::cout << "[p1.x] " << p1.x << " [p1.y] " << p1.y << " [p1.z] " << p1.z << std::endl;
+	VISION_PREDICTOR_STREAM << "[p1.x] " << p1.x << " [p1.y] " << p1.y << " [p1.z] " << p1.z << std::endl;
 
 	float v0_ = v0 - 0.5;
 
@@ -752,7 +701,7 @@ float PredictorPose::bullteFlyTime(Eigen::Vector3d coord)
 		v0_ = 30;
 	}
 
-	std::cout << "bullut speed is: " << v0_ << std::endl;
+	VISION_PREDICTOR_STREAM << "bullut speed is: " << v0_ << std::endl;
 
 	float g = 9.80665;
 
@@ -765,9 +714,9 @@ float PredictorPose::bullteFlyTime(Eigen::Vector3d coord)
 	/////
 	if (p1.z < 0 && p1.x < 0)
 	{
-		std::cout << "gm_ptz.yaw" << gm_ptz.yaw << std::endl;
+		VISION_PREDICTOR_STREAM << "gm_ptz.yaw" << gm_ptz.yaw << std::endl;
 		gm_ptz.yaw = gm_ptz.yaw - 2 * (gm_ptz.yaw + 90);
-		std::cout << " bias " << 2 * (gm_ptz.yaw + 90) << std::endl;
+		VISION_PREDICTOR_STREAM << " bias " << 2 * (gm_ptz.yaw + 90) << std::endl;
 	}
 
 	if (p1.z < 0 && p1.x > 0)
@@ -775,7 +724,7 @@ float PredictorPose::bullteFlyTime(Eigen::Vector3d coord)
 		gm_ptz.yaw = gm_ptz.yaw + 2 * (90 - gm_ptz.yaw);
 	}
 
-	std::cout << "[yaw: ]" << gm_ptz.yaw << std::endl;
+	VISION_PREDICTOR_STREAM << "[yaw: ]" << gm_ptz.yaw << std::endl;
 
 	// pitch值
 	float a = -0.5 * g * (std::pow(distance1, 2) / std::pow(v0_, 2));
@@ -804,14 +753,14 @@ float PredictorPose::bullteFlyTime(Eigen::Vector3d coord)
 	// cout << "角度是：   " << tan_angle1  << "   " << tan_angle2 << endl;
 	float PI_pitch = (gm_ptz.pitch / 180) * CV_PI; // 弧度制
 
-	std::cout << "[pitch: ]" << gm_ptz.pitch << std::endl;
+	VISION_PREDICTOR_STREAM << "[pitch: ]" << gm_ptz.pitch << std::endl;
 
 	return distance1 / (v0_ * std::cos(PI_pitch));
 }
 
 ArmorObject PredictorPose::ArmorSelect(std::vector<ArmorObject> &objects)
 {
-	for (int i = 0; i < objects.size(); i++)
+	for (size_t i = 0; i < objects.size(); i++)
 	{
 		std::pair<Eigen::Vector3d, Eigen::Vector3d> world_cam_pose;
 		world_cam_pose = pnp_solve_->poseCalculation(objects[i]);
@@ -824,23 +773,23 @@ ArmorObject PredictorPose::ArmorSelect(std::vector<ArmorObject> &objects)
 		objects[i].pyr = cam_ptz_pose.second;
 	}
 
-	float distances[objects.size()];
-	for (int i = 0; i < objects.size(); i++)
+	std::vector<float> distances(objects.size());
+	for (size_t i = 0; i < objects.size(); i++)
 	{
 		distances[i] = std::sqrt(std::pow(objects[i].coord[0], 2) + std::pow(objects[i].coord[1], 2) + std::pow(objects[i].coord[2], 2));
 	}
 
 	float last_pose = std::sqrt(std::pow(last_pose_.first[0], 2) + std::pow(last_pose_.first[1], 2) + std::pow(last_pose_.first[2], 2));
 
-	float distances_residual[objects.size()];
+	std::vector<float> distances_residual(objects.size());
 
-	for (int i = 1; i < objects.size(); i++)
+	for (size_t i = 0; i < objects.size(); i++)
 	{
 		distances_residual[i] = std::abs(distances[i] - last_pose);
 	}
 
-	int index = 0;
-	for (int i = 1; i < objects.size(); i++)
+	size_t index = 0;
+	for (size_t i = 1; i < objects.size(); i++)
 	{
 		if (distances_residual[i] < distances_residual[index])
 			index = i;
@@ -849,88 +798,47 @@ ArmorObject PredictorPose::ArmorSelect(std::vector<ArmorObject> &objects)
 	return objects[index];
 }
 
-Eigen::Vector3d PredictorPose::CeresVelocity(std::deque<Eigen::Vector4d> velocities) // 最小二乘法拟合速度
+ArmorObject PredictorPose::ArmorSelectByPrediction(std::vector<ArmorObject> &objects, bool reidentify)
 {
-
-	int N = velocities.size();
-	if (velocities.size() < 4)
+	for (size_t i = 0; i < objects.size(); i++)
 	{
-		return last_velocity_;
+		std::pair<Eigen::Vector3d, Eigen::Vector3d> world_cam_pose = pnp_solve_->poseCalculation(objects[i]);
+		objects[i].coord = cam3ptz(imu_data_, world_cam_pose.first);
+		objects[i].pyr = world_cam_pose.second;
 	}
 
-	double avg_x = 0;
-	double avg_x2 = 0;
-	double avg_f = 0;
-	double avg_xf = 0;
-
-	double time_first = velocities.front()[3];
-
-	for (int i = 0; i < N; i++)
+	if (objects.empty())
 	{
-		avg_x += velocities[i][3] - time_first;
-		avg_x2 += std::pow(velocities[i][3] - time_first, 2);
-		avg_f += velocities[i][0];
-		avg_xf += (velocities[i][3] - time_first) * velocities[i][0];
+		return ArmorObject();
 	}
 
-	double vx = (avg_xf - N * (avg_x / N) * (avg_f / N)) / (avg_x2 - N * std::pow(avg_x / N, 2));
-
-	avg_x = 0;
-	avg_x2 = 0;
-	avg_f = 0;
-	avg_xf = 0;
-	for (int i = 0; i < N; i++)
+	Eigen::Vector3d reference = last_location_;
+	if (!init_ && state_ != ARMOR_STATE_::LOSS)
 	{
-		avg_x += velocities[i][3] - time_first;
-		avg_x2 += std::pow(velocities[i][3] - time_first, 2);
-		avg_f += velocities[i][1];
-		avg_xf += (velocities[i][3] - time_first) * velocities[i][1];
-	}
-	double vy = (avg_xf - N * (avg_x / N) * (avg_f / N)) / (avg_x2 - N * std::pow(avg_x / N, 2));
-
-	double avg_x_ = 0;
-	double avg_x2_ = 0;
-	double avg_f_ = 0;
-	double avg_xf_ = 0;
-	for (int i = 0; i < N; i++)
-	{
-		avg_x_ += velocities[i][3] - time_first;
-		avg_x2_ += std::pow(velocities[i][3] - time_first, 2);
-		avg_f_ += velocities[i][2];
-		avg_xf_ += (velocities[i][3] - time_first) * velocities[i][2];
-	}
-	double vz = (avg_xf_ - N * (avg_x_ / N) * (avg_f_ / N)) / (avg_x2_ - N * std::pow(avg_x_ / N, 2));
-
-	// Vector3d ave_v_;
-	// ave_v_[0] = vx;
-	// ave_v_[1] = vy;
-	// ave_v_[2] = vz;
-	
-	// if (ave_v.size() != 0)
-	// {
-		// double sum_vx, sum_vy, sum_vz;
-		// for (int u = 0; u < ave_v.size(); u++)
-		// {
-		// 	sum_vx += ave_v[u][0];
-		// 	sum_vy += ave_v[u][1];
-		// 	sum_vz += ave_v[u][2];
-		// }
-		// double aver_vx = sum_vx / ave_v.size();
-		// double aver_vy = sum_vy / ave_v.size();
-		// double aver_vz = sum_vz / ave_v.size();
-
-	if (vx * last_velocity_[0] < 0 && v_count < 4)
-	{
-		vx = last_velocity_[0];
-		v_count++;
-	}
-        else
-	{
-		v_count=0;
+		reference = spinArmorPosition(spin_ekf.Xe, clampDt(current_time_ - last_time_), current_armor_group_);
 	}
 
+	size_t index = 0;
+	double best_score = std::numeric_limits<double>::max();
+	for (size_t i = 0; i < objects.size(); i++)
+	{
+		double score = (objects[i].coord - reference).norm();
+		if (!reidentify && objects[i].label != last_id)
+		{
+			score += 0.4;
+		}
+		if (reidentify && score > kLostReidDistanceGate)
+		{
+			score += 0.8;
+		}
+		if (score < best_score)
+		{
+			best_score = score;
+			index = i;
+		}
+	}
 
-	return {vx, vy, vz};
+	return objects[index];
 }
 
 bool PredictorPose::isSwitch(Vector3d up_switch, Vector3d down_switch)
@@ -952,29 +860,6 @@ bool PredictorPose::isSwitch(Vector3d up_switch, Vector3d down_switch)
 	}
 }
 
-bool PredictorPose::isGyro(std::deque<double> time_buff_, Vector3d up_switch, Vector3d down_switch)
-{
-	{
-		std::cout << GREEN << "4 --- 3: "<< std::abs(time_buff_[4] - time_buff_[3]) << std::endl;
-		std::cout << GREEN << "3 --- 2: "<< std::abs(time_buff_[3] - time_buff_[2]) << std::endl;
-		std::cout << GREEN << "2 --- 1: "<< std::abs(time_buff_[2] - time_buff_[1]) << std::endl;
-		std::cout << GREEN << "1 --- 0: "<< std::abs(time_buff_[1] - time_buff_[0]) << std::endl;
-		std::cout << WHITE << std::endl;
-	}
-	
-	if ((std::abs(time_buff_[4] - time_buff_[3]) < 1.8 && std::abs(time_buff_[4] - time_buff_[3]) > 0.1)
-		&& (std::abs(time_buff_[3] - time_buff_[2]) < 1.8 && std::abs(time_buff_[3] - time_buff_[2]) > 0.1) 
-		&& (std::abs(time_buff_[2] - time_buff_[1]) < 1.8 && std::abs(time_buff_[2] - time_buff_[1]) > 0.1) 
-		&& (std::abs(time_buff_[1] - time_buff_[0]) < 1.8 && std::abs(time_buff_[1] - time_buff_[0]) > 0.1))
-	{
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
 Eigen::Vector3d PredictorPose::cam3ptz(GimbalPose gm, Vector3d pos)
 {
 	pos[0] = pos[0] + X_BIAS;
@@ -985,9 +870,9 @@ Eigen::Vector3d PredictorPose::cam3ptz(GimbalPose gm, Vector3d pos)
 	Matrix3d pitch_rotation_matrix_;
 	Matrix3d yaw_rotation_matrix_;
 
-	std::cout << "camera pose " << pos[0] << " " << pos[1] << " " << pos[2] << std::endl;
-	std::cout << "solve gm.pitch" << gm.pitch << std::endl;
-	std::cout << "solve gm.yaw" << gm.yaw << std::endl;
+	VISION_PREDICTOR_STREAM << "camera pose " << pos[0] << " " << pos[1] << " " << pos[2] << std::endl;
+	VISION_PREDICTOR_STREAM << "solve gm.pitch" << gm.pitch << std::endl;
+	VISION_PREDICTOR_STREAM << "solve gm.yaw" << gm.yaw << std::endl;
 
 	pitch_rotation_matrix_
 		<< 1,
@@ -1003,7 +888,7 @@ Eigen::Vector3d PredictorPose::cam3ptz(GimbalPose gm, Vector3d pos)
 
 	Vector3d t_pos_ =  yaw_rotation_matrix_ * pitch_rotation_matrix_ * pos;
 
-	std::cout << "world pose " << t_pos_[0] << " " << t_pos_[1] << " " << t_pos_[2] << std::endl;
+	VISION_PREDICTOR_STREAM << "world pose " << t_pos_[0] << " " << t_pos_[1] << " " << t_pos_[2] << std::endl;
 
 	return t_pos_;
 }

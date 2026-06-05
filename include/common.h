@@ -18,6 +18,7 @@
 #include <opencv2/core/eigen.hpp>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
+#include "vision_debug.h"
 
 #define X_BIAS -0.065
 #define Y_BIAS 0.035
@@ -57,7 +58,7 @@ namespace lqq
     {
         if ((_rear + 1) % MAX_SIZE == _front) // 队列满
         {
-            std::cout << "队列已满！" << std::endl;
+            VISION_LOG("队列已满！" << std::endl);
             return false;
         }
 
@@ -72,7 +73,7 @@ namespace lqq
     {
         if (_front == _rear)
         {
-            std::cout << "队列为空！" << std::endl;
+            VISION_LOG("队列为空！" << std::endl);
             return false;
         }
         _front = (_front + 1) % MAX_SIZE;
@@ -182,7 +183,7 @@ public:
     CircularQueue()
     {
         init();
-        std::cout << "[enter queue]" << std::endl;
+        VISION_LOG("[enter queue]" << std::endl);
     }
 
     bool Enqueue(T &val);
@@ -209,6 +210,7 @@ bool CircularQueue<T,BUFFER>::Enqueue(T &val)
     {
         size_ = BUFFER;
     }
+    return true;
 }
 
 template <class T,int BUFFER>

@@ -68,6 +68,7 @@ cv::Mat DetectorProcess::PreProcessYolo(cv::Mat &img, int input_h, int input_w)
 
 void drawPred(float conf, int left, int top, int right, int bottom, cv::Mat &frame, vector<int> landmark, int id) // Draw the predicted bounding box
 {
+#if VISION_ENABLE_DETECTOR_DRAW
 	// Draw a rectangle displaying the bounding box
 	// cv::rectangle(frame, cv::Point(left, top), cv::Point(right, bottom), cv::Scalar(0, 255, 0), 2);
 	// cv::rectangle(frame, cv::Point(left-70, top-70), cv::Point(right+30, bottom+30), cv::Scalar(0, 255, 0), 2);
@@ -88,7 +89,7 @@ void drawPred(float conf, int left, int top, int right, int bottom, cv::Mat &fra
 
 	for (int i = 0; i < 5; i++)
 	{
-		printf("[%d,%d]\n", landmark[2 * i], landmark[2 * i + 1]);
+		VISION_DETECTOR_PRINTF("[%d,%d]\n", landmark[2 * i], landmark[2 * i + 1]);
 		if(true)
 		{
 			cv::circle(frame, cv::Point(landmark[2 * i], landmark[2 * i + 1]), 10, cv::Scalar(0, 255, 0), -1);
@@ -101,6 +102,16 @@ void drawPred(float conf, int left, int top, int right, int bottom, cv::Mat &fra
 	cv::line(frame, cv::Point(landmark[8], landmark[9]), cv::Point(landmark[0], landmark[1]), cv::Scalar(211,160,211), 3, 8);
 
 	// cv::imwrite("detect.jpg",frame);
+#else
+	(void)conf;
+	(void)left;
+	(void)top;
+	(void)right;
+	(void)bottom;
+	(void)frame;
+	(void)landmark;
+	(void)id;
+#endif
 }
 
 int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
@@ -143,14 +154,6 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
 							continue;
 						}
 
-						float cx = pdata[0] * ratiow; /// cx
-						float cy = pdata[1] * ratioh; /// cy
-						float w = pdata[2];			  /// w
-						float h = pdata[3];			  /// h
-
-						int left = cx - 0.5 * w;
-						int top = cy - 0.5 * h;
-
 						confidences.push_back(face_score);
 
 						vector<int> landmark(10);
@@ -181,7 +184,7 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
 	// lower confidences
 	vector<int> indices;
 	cv::dnn::NMSBoxes(boxes, confidences, nmsScoreThreshold, nmsThreshold, indices);
-	printf("indices size = %ld\n", indices.size());
+	VISION_DETECTOR_PRINTF("indices size = %ld\n", indices.size());
 
 	BuffObject obj;
 	int count = indices.size();
@@ -194,7 +197,7 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
 		{
 			//continue;
 		}
-		printf("idx = %d\n", labels[idx]);
+		VISION_DETECTOR_PRINTF("idx = %d\n", labels[idx]);
 		cv::Rect bbox = boxes[idx];
 		drawPred(confidences[idx], bbox.x, bbox.y,
 				 bbox.x + bbox.width, bbox.y + bbox.height, srcimg, landmarks[idx], labels[idx]);
@@ -205,7 +208,7 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
 		obj.pts[1] = cv::Point2f(landmarks[idx][2], landmarks[idx][3]);
 		obj.pts[2] = cv::Point2f(landmarks[idx][4], landmarks[idx][5]);
 		obj.pts[3] = cv::Point2f(landmarks[idx][6], landmarks[idx][7]);
-		obj.pts[8] = cv::Point2f(landmarks[idx][8], landmarks[idx][9]);
+		obj.pts[4] = cv::Point2f(landmarks[idx][8], landmarks[idx][9]);
 
 		for (int i = 0; i < 5; i++)
 		{
@@ -214,7 +217,7 @@ int DetectorProcess::PostProcessYoloV5n(cv::Mat &srcimg, const float threshold,
 		}
 		objects.emplace_back(obj);
 	}
-	std::cout << "[size]: " << objects.size() << std::endl;
+	VISION_DETECTOR_LOG("[size]: " << objects.size() << std::endl);
 
 	return 0;
 }
@@ -245,7 +248,7 @@ std::vector<BuffObject> DetectorProcess::run(cv::Mat &img)
 	}
 	else
 	{
-		std::cout << "[size1] " << objects.size() << std::endl;
+		VISION_DETECTOR_LOG("[size1] " << objects.size() << std::endl);
 	}
 
 	return objects;

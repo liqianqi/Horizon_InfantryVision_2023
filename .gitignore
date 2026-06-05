@@ -1,3 +1,60 @@
-build
-.vscode
-model
+# ---------- 编译产物 / Build ----------
+build/
+
+# cmake-build-*/
+# out/
+# *.o
+# *.obj
+# *.so
+# *.a
+# *.dylib
+# *.exe
+# *.out
+
+# # CMake 生成文件
+# CMakeFiles/
+# CMakeCache.txt
+# cmake_install.cmake
+# Makefile
+# compile_commands.json
+# _deps/
+
+# # ---------- IDE / 编辑器 ----------
+.vscode/
+# .idea/
+# *.user
+# CMakeLists.txt.user
+.cache/
+# .clangd/
+# *.swp
+# *~
+
+# # ---------- 日志 / 调试输出 ----------
+# *.log
+# log/
+# logs/
+
+# # ---------- 大体积数据（视频 / 图片录制） ----------
+# *.avi
+# *.mp4
+# *.mkv
+# *.flv
+
+# # ---------- 模型权重 / 二进制（按需取消注释保留） ----------
+# *.onnx
+# *.engine
+# *.weights
+# *.pt
+# *.pth
+# *.caffemodel
+# # OpenVINO IR 二进制（.xml 是结构，.bin 是权重）
+# *.bin
+# *.mapping
+
+# # ---------- Python 缓存 ----------
+# __pycache__/
+# *.pyc
+
+# # ---------- 系统文件 ----------
+# .DS_Store
+# Thumbs.db

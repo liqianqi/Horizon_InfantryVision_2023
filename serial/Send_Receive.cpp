@@ -1,4 +1,5 @@
 #include "Send_Receive.h"
+#include <vector>
 
 namespace Horizon
 {
@@ -10,10 +11,10 @@ namespace Horizon
 		int fd;
 		//    fd = open(Portname,O_RDWR);
 		fd = open(Portname, O_RDWR | O_NOCTTY | O_NONBLOCK);
-		cout << fd << endl;
+		VISION_SERIAL_LOG(fd << std::endl);
 		if (-1 == fd)
 		{
-			printf("The port open error!\n");
+			VISION_SERIAL_LOG("The port open error!" << std::endl);
 			return -1;
 		}
 		else
@@ -121,8 +122,8 @@ namespace Horizon
 		send_bytes[7] = data.yaw_data_.c[2];
 		send_bytes[8] = data.yaw_data_.c[3];
 
-		std::cout << "send pitch" << data.pitch_data_.f << std::endl;
-		std::cout << "send yaw" << data.yaw_data_.f << std::endl;
+		VISION_SERIAL_LOG("send pitch" << data.pitch_data_.f << std::endl);
+		VISION_SERIAL_LOG("send yaw" << data.yaw_data_.f << std::endl);
 
 		state_ = 0;
 
@@ -200,8 +201,8 @@ namespace Horizon
 		{
 			return;
 		}
-		unsigned char *rec_bytes = new unsigned char[bytes + 100]();
-		bytes = read(fd, rec_bytes, bytes);
+		std::vector<unsigned char> rec_bytes(bytes + 100);
+		bytes = read(fd, rec_bytes.data(), bytes);
 
 		//
 		int FirstIndex = -1;
@@ -240,45 +241,31 @@ namespace Horizon
 			get_data.yaw_data_.c[2] = rec_bytes[FirstIndex + 7];
 			get_data.yaw_data_.c[3] = rec_bytes[FirstIndex + 8];
 
-			printf("PITCH is %d,%d,%d,%d \n", rec_bytes[FirstIndex + 1], rec_bytes[FirstIndex + 2], rec_bytes[FirstIndex + 3], rec_bytes[FirstIndex + 4]);
-			printf("YAW is %d,%d,%d,%d \n", rec_bytes[FirstIndex + 5], rec_bytes[FirstIndex + 6], rec_bytes[FirstIndex + 7], rec_bytes[FirstIndex + 8]);
+			if (VISION_ENABLE_SERIAL_LOG)
+			{
+				std::printf("PITCH is %d,%d,%d,%d \n", rec_bytes[FirstIndex + 1], rec_bytes[FirstIndex + 2], rec_bytes[FirstIndex + 3], rec_bytes[FirstIndex + 4]);
+				std::printf("YAW is %d,%d,%d,%d \n", rec_bytes[FirstIndex + 5], rec_bytes[FirstIndex + 6], rec_bytes[FirstIndex + 7], rec_bytes[FirstIndex + 8]);
+			}
 
 			if((get_data.pitch_data_.f) > 10000)
 			{
 				std::cout << "pitch error" << std::endl;
-				exit(0);
-				int bit = getBit(get_data.pitch_data_.c[2], 6);
-				if(bit == 1)
-				{
-					CLEAR_BIT(get_data.pitch_data_.c[2],6);
-				}
-
-				int bit1 = getBit(get_data.pitch_data_.c[3], 6);
-				if(bit1 == 1)
-				{
-					CLEAR_BIT(get_data.pitch_data_.c[3],6);
-				}
+				get_data.dubug_print = false;
+				return;
 			}
 
 			if((get_data.yaw_data_.f) > 10000)
 			{
-				exit(0);
 				std::cout << "yaw error" << std::endl;
-				int bit = getBit(get_data.yaw_data_.c[2], 6);
-				if(bit == 1)
-				{
-					CLEAR_BIT(get_data.yaw_data_.c[2],6);
-				}
-
-				int bit1 = getBit(get_data.yaw_data_.c[3], 6);
-				if(bit1 == 1)
-				{
-					CLEAR_BIT(get_data.yaw_data_.c[3],6);
-				}
+				get_data.dubug_print = false;
+				return;
 			}
 
-			printf("PITCH1 is %d,%d,%d,%d \n", get_data.pitch_data_.c[0], get_data.pitch_data_.c[1], get_data.pitch_data_.c[2], get_data.pitch_data_.c[3]);
-			printf("YAW1 is %d,%d,%d,%d \n", get_data.yaw_data_.c[0], get_data.yaw_data_.c[1], get_data.yaw_data_.c[2], get_data.yaw_data_.c[3]);
+			if (VISION_ENABLE_SERIAL_LOG)
+			{
+				std::printf("PITCH1 is %d,%d,%d,%d \n", get_data.pitch_data_.c[0], get_data.pitch_data_.c[1], get_data.pitch_data_.c[2], get_data.pitch_data_.c[3]);
+				std::printf("YAW1 is %d,%d,%d,%d \n", get_data.yaw_data_.c[0], get_data.yaw_data_.c[1], get_data.yaw_data_.c[2], get_data.yaw_data_.c[3]);
+			}
 
 			// printf("first %d, second %d, third %d, forth %d\n", rec_bytes[1], rec_bytes[2], rec_bytes[3], rec_bytes[4]);
 
@@ -296,12 +283,12 @@ namespace Horizon
 
 			if (getBit(get_data.OnePointFive, 4) == 0)
 			{
-				std::cout << "识别红色" << std::endl;
+				VISION_SERIAL_LOG("识别红色" << std::endl);
 				get_data.color_ = false;
 			}
 			else
 			{
-				std::cout << "识别蓝色" << std::endl;
+				VISION_SERIAL_LOG("识别蓝色" << std::endl);
 				get_data.color_ = true;
 			}
 
@@ -341,13 +328,12 @@ namespace Horizon
 			get_data.init_firing_rate = rec_bytes[FirstIndex + 14];
 
 			// get_data.IsHave = true;
-			cout << "接收完成" << get_data.time.f << endl;
+			VISION_SERIAL_LOG("接收完成" << get_data.time.f << std::endl);
 			get_data.dubug_print = true;
-			free(rec_bytes);
 		}
 		else
 		{
-			cout << "接受失败!" << endl;
+			VISION_SERIAL_LOG("接受失败!" << std::endl);
 			// get_data.IsHave = false;
 			get_data.dubug_print = false;
 		}

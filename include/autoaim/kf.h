@@ -84,8 +84,8 @@ public:
      */
     Vector3d KalmanMainRun(Vector3d now_x, Vector3d now_rad_v)
     {
-        chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
-        chrono::duration<double> time_used = chrono::duration_cast<chrono::duration<double>>(t2 - ta);
+        std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+        std::chrono::duration<double> time_used = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - ta);
         ta = t2;
 
         if (!flag_)
@@ -93,7 +93,7 @@ public:
             VectorXd x(6, 1);
             x << now_x[0], now_x[1], now_x[2], 0, 0, 0;
             last_x_ = x;
-            cout << "kalaman init" << endl;
+            VISION_PREDICTOR_LOG("kalaman init" << endl);
             flag_ = true;
             return now_x;
         }
@@ -102,7 +102,7 @@ public:
         x << now_x[0], now_x[1], now_x[2], now_rad_v[0], now_rad_v[1], now_rad_v[2];
         x_ = x;
 
-        if (is_change_direction_ = true)
+        if (is_change_direction_)
         {
             Eigen::MatrixXd P_in = Eigen::MatrixXd(6, 6);
             P_in << 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -132,7 +132,7 @@ public:
 
         measure(z_);
 
-        cout << "1   " << x_[0] << " 2  " << x_[1] << "  3 " << x_[2] << endl;
+        VISION_PREDICTOR_LOG("1   " << x_[0] << " 2  " << x_[1] << "  3 " << x_[2] << endl);
         if (std::abs(x_[2] - last_x_[2]) > CV_PI / 24)
         {
             Vector3d last;
@@ -140,7 +140,7 @@ public:
             return last;
         }
         last_x_ = x_;
-        cout << "kalaman filter finished" << endl;
+        VISION_PREDICTOR_LOG("kalaman filter finished" << endl);
         Vector3d x_now;
         x_now << x_[0], x_[1], x_[2];
         return x_now;
